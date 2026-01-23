@@ -68,7 +68,18 @@ unique(site90$Depth_m)
 joined_ccr_chem2 <- joined_ccr_chem |> 
   filter(!(Site == 90 & Depth_m == 1.5))
 
-#write.csv(joined_ccr_chem2, "./Data/chemistry_joined.csv", row.names = F)
+#add calculated chem values
+joined_ccr_chem3 <- joined_ccr_chem2 |> 
+  mutate(DON_mgL = DN_mgL - ((NO3NO2_ugL + NH4_ugL)/1000)) |> 
+  mutate(SUVA254 = a254_m / DOC_mgL) |> 
+  mutate(D_excess = d2H_VSMOW - 8*d18O_VSMOW) |> 
+  #order data 
+  select(Reservoir, Site, Date, Depth_m, 
+         HIX, BIX, FI, Peak_A, Peak_T, A_T, a254_m, SUVA254,
+         d18O_VSMOW, d2H_VSMOW, D_excess,
+         DOC_mgL, DON_mgL, DN_mgL, NO3NO2_ugL, NH4_ugL, SRP_ugL)
+
+#write.csv(joined_ccr_chem3, "./Data/chemistry_joined.csv", row.names = F)
 
 
 
