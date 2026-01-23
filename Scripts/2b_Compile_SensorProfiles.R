@@ -130,7 +130,7 @@ distance_depths <- left_join(distances, depths, by = c("Date", "Site_code"))
 sensors_distances_final <- left_join(sensors, distance_depths, by = c("Date", "Site")) |> 
   #order data 
   select(Reservoir, Site, Site_code, Date, Depth_m, 
-         Distance, Dry_start, Dry_end,
+         Distance, Dry_start, Dry_end, Max_Depth_Site_m,
          Temp_C, DO_mgL, DOsat_percent, SpCond_uScm
          )
 
