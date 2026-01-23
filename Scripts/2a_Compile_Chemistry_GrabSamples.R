@@ -26,9 +26,6 @@ eems_ccr <- eems_EDI |>
 
   
 
-
-
-
 #### DOC and nutrients 
 chem_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/199/13/3f09a3d23b7b5dd32ed7d28e9bc1b081")
 
@@ -72,15 +69,40 @@ joined_ccr_chem2 <- joined_ccr_chem |>
 joined_ccr_chem3 <- joined_ccr_chem2 |> 
   mutate(DON_mgL = DN_mgL - ((NO3NO2_ugL + NH4_ugL)/1000)) |> 
   mutate(SUVA254 = a254_m / DOC_mgL) |> 
-  mutate(D_excess = d2H_VSMOW - 8*d18O_VSMOW) |> 
+  mutate(D_excess = d2H_VSMOW - 8*d18O_VSMOW) 
+
+
+
+####add sampling distance locations 
+Site_code_number <- data.frame(Site_code = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
+                               Site = c(101, 100, 98, 96, 92, 90, 88, 50))
+
+## bring in distances and site class table from google sheets; have to redownload locally each time 
+distances_ft <- read_csv("./Data/Sampling_Locations_Distances.csv") 
+
+distances <- distances_ft |> 
+  mutate(Date = mdy(Date)) |> 
+  dplyr::select(-c(12,13)) |> 
+  pivot_longer(-c(1,10,11), names_to = "Site_code", values_to = "Distance_ft")  |> 
+  mutate(Distance = Distance_ft*0.3048,
+         Dry_start = Dry_start*0.3048,
+         Dry_end = Dry_end*0.3048) |> 
+  select(-Distance_ft) |> 
+  left_join(Site_code_number, by = "Site_code")
+  
+
+####bind distances to chem 
+chem_distances_final <- left_join(joined_ccr_chem3, distances, by = c("Date", "Site")) |> 
   #order data 
-  select(Reservoir, Site, Date, Depth_m, 
-         HIX, BIX, FI, Peak_A, Peak_T, A_T, a254_m, SUVA254,
-         d18O_VSMOW, d2H_VSMOW, D_excess,
-         DOC_mgL, DON_mgL, DN_mgL, NO3NO2_ugL, NH4_ugL, SRP_ugL)
+  select(Reservoir, Site, Site_code, Date, Depth_m, Distance, Dry_start, Dry_end,
+       HIX, BIX, FI, Peak_A, Peak_T, A_T, a254_m, SUVA254,
+       d18O_VSMOW, d2H_VSMOW, D_excess,
+       DOC_mgL, DON_mgL, DN_mgL, NO3NO2_ugL, NH4_ugL, SRP_ugL)
 
-#write.csv(joined_ccr_chem3, "./Data/chemistry_joined.csv", row.names = F)
 
+#### Write final csv ####
+
+#write.csv(chem_distances_final, "./Data/chemistry_joined.csv", row.names = F)
 
 
 
