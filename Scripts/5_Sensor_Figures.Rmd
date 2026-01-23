@@ -272,8 +272,22 @@ heatmap_EDI <- function(data, reservoir, site_code, z){
   
   # load packages
   pacman::p_load(tidyverse, lubridate, akima, reshape2, 
-               gridExtra, grid, colorRamps, RColorBrewer, cowplot)
+               gridExtra, grid, colorRamps, RColorBrewer, cowplot, rLakeAnalyzer)
   
+  #find thermocline data
+thermocline_data <- data |> 
+  filter(Site_code == site_code) |> 
+  select(Date, Depth_m, Temp_C) |> 
+  pivot_wider(names_from = Depth_m, values_from = Temp_C, values_fn = list(Temp_C = mean)) |> 
+  rename(datetime = Date)
+
+colnames(thermocline_data)[-1] = paste0('wtr_',colnames(thermocline_data)[-1])
+
+
+thermocline_depths <- ts.thermo.depth(thermocline_data, na.rm = TRUE)
+
+thermocline_depths <- thermocline_depths |> 
+  rename(Date = datetime)
   
   #subset to relevant data
   fp_new <- data %>%
@@ -299,6 +313,10 @@ heatmap_EDI <- function(data, reservoir, site_code, z){
     geom_raster(aes(fill=z))+
     scale_y_reverse(expand = c(0,0))+
     scale_x_date(expand = c(0, 0)) +
+    ## thermocline lines
+  geom_line(data = thermocline_depths, aes(x=Date, y=thermo.depth, z=NULL), color = "black", lwd = 1)+
+  geom_point(data = thermocline_depths, aes(x=Date, y=thermo.depth, z=NULL), pch = 21, size = 2, color = "white", fill = "black")+
+    ##sampling points
     geom_point(data = fp_new, aes(x = Date, y = 0.1, z = NULL), pch = 25, size = 3, fill = "black")+ 
     scale_fill_gradientn(colours = blue2green2red(60), na.value="gray")+
     labs(x = "Date", y = "Depth (m)", title = fig_title,fill=(z))+
@@ -324,6 +342,48 @@ heatmap_EDI(data = sensors, reservoir = "CCR", site_code = "C2", z = "DO_mgL")
 
 ```
 
+calc thermocline by dates
+
+```{r}
+library(rLakeAnalyzer)
+
+## P2 thermocline
+p2_temp <- sensors |> 
+  filter(Site_code == "P2") |> 
+  select(Date, Depth_m, Temp_C) |> 
+  pivot_wider(names_from = Depth_m, values_from = Temp_C, values_fn = list(Temp_C = mean)) |> 
+  rename(datetime = Date)
+
+colnames(p2_temp)[-1] = paste0('wtr_',colnames(p2_temp)[-1])
+
+p2_thermocline <- ts.thermo.depth(p2_temp, na.rm = TRUE)
+
+## P1 thermocline
+p1_temp <- sensors |> 
+  filter(Site_code == "P1") |> 
+  select(Date, Depth_m, Temp_C) |> 
+  pivot_wider(names_from = Depth_m, values_from = Temp_C, values_fn = list(Temp_C = mean)) |> 
+  rename(datetime = Date)
+
+colnames(p1_temp)[-1] = paste0('wtr_',colnames(p1_temp)[-1])
+
+p1_thermocline <- ts.thermo.depth(p1_temp, na.rm = TRUE)
+
+
+## C2 thermocline
+c2_temp <- sensors |> 
+  filter(Site_code == "C2") |> 
+  select(Date, Depth_m, Temp_C) |> 
+  pivot_wider(names_from = Depth_m, values_from = Temp_C, values_fn = list(Temp_C = mean)) |> 
+  rename(datetime = Date)
+
+colnames(c2_temp)[-1] = paste0('wtr_',colnames(c2_temp)[-1])
+
+c2_thermocline <- ts.thermo.depth(c2_temp, na.rm = TRUE)
+
+
+
+```
 
 
 
