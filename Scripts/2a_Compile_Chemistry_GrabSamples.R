@@ -57,7 +57,18 @@ iso_ccr <- iso_EDI |>
 joined_ccr_chem <- full_join(eems_ccr, iso_ccr, by = c("Reservoir", "Site","Date", "Depth_m")) |> 
   full_join(chem_ccr, by = c("Reservoir", "Site","Date", "Depth_m"))
 
-#write.csv(joined_ccr_chem, "./Data/chemistry_joined.csv", row.names = F)
+
+#Site 90 (C2) had extra depth samples collected at 1.5 meters on each day, confirm this and remove those so the two Cove sites are just surface and max depth samples
+site92 <- joined_ccr_chem |> filter(Site == 92) 
+unique(site92$Depth_m)
+
+site90 <- joined_ccr_chem |> filter(Site == 90) 
+unique(site90$Depth_m)
+
+joined_ccr_chem2 <- joined_ccr_chem |> 
+  filter(!(Site == 90 & Depth_m == 1.5))
+
+#write.csv(joined_ccr_chem2, "./Data/chemistry_joined.csv", row.names = F)
 
 
 
