@@ -94,7 +94,48 @@ unique(ccr_ysi$Site)
 sensors <- plyr::rbind.fill(ccr_ysi, ccr_ctd) |> 
   select(1:8)
 
+####add sampling distance locations 
+Site_code_number <- data.frame(Site_code = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
+                               Site = c(101, 100, 98, 96, 92, 90, 88, 50))
 
-# write.csv(sensors, "./Data/sensors_joined.csv", row.names = F)
+## bring in distances and site class table from google sheets; have to redownload locally each time 
+distances_ft <- read_csv("./Data/Sampling_Locations_Distances.csv") 
+
+distances <- distances_ft |> 
+  mutate(Date = mdy(Date)) |> 
+  dplyr::select(-c(12,13)) |> 
+  pivot_longer(-c(1,10,11), names_to = "Site_code", values_to = "Distance_ft")  |> 
+  mutate(Distance = Distance_ft*0.3048,
+         Dry_start = Dry_start*0.3048,
+         Dry_end = Dry_end*0.3048) |> 
+  select(-Distance_ft) |> 
+  left_join(Site_code_number, by = "Site_code")
+
+
+####add max depth of sampling locations 
+depths_unformated <- read_csv("./Data/Sampling_Locations_MaxDepths.csv")
+
+depths <- depths_unformated |> 
+  mutate(Date = mdy(Date)) |> 
+  dplyr::select(-c(10)) |> 
+  pivot_longer(-c(1), names_to = "Site_code", values_to = "Max_Depth_Site_m") 
+
+
+##join max depths to distances
+distance_depths <- left_join(distances, depths, by = c("Date", "Site_code"))
+
+
+
+####join sensors to distances and max depths
+sensors_distances_final <- left_join(sensors, distance_depths, by = c("Date", "Site")) |> 
+  #order data 
+  select(Reservoir, Site, Site_code, Date, Depth_m, 
+         Distance, Dry_start, Dry_end,
+         Temp_C, DO_mgL, DOsat_percent, SpCond_uScm
+         )
+
+
+#### write csv
+# write.csv(sensors_distances_final, "./Data/sensors_joined.csv", row.names = F)
 
 
