@@ -50,7 +50,61 @@ sensors |>
 
  
 ## MS figures 
- 
+
+
+Highlight temp differences by date in shallower sites
+
+```{r}
+### Date levels
+levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
+               "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
+
+##same format as below
+sensors |> 
+  filter(!Site %in% c(50,88,90)) |> 
+    mutate(Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
+         Dry_end = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA)) |> #so just one row has info for dry start and end, was having issues where laying multiple rectangles for more observations affected shading color
+  mutate(Date1 = format(Date, "%d %b")) |> 
+  ggplot(aes(x = Distance, y = Depth_m, fill = Temp_C))+
+  geom_hline(yintercept = 0, color = "blue")+ # line for surface of the water
+  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ #Line for dry reach; color gets rid of border
+    geom_line(aes(y = Max_Depth_Site_m+0.1), color = "brown")+ #line for max depth
+  facet_wrap(~factor(Date1, levels = levels_db), nrow = 1)+
+  geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
+  scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
+  theme_bw()+ theme(legend.position = "right", text = element_text(size = 14),
+                    legend.text = element_text(size = 12),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)",
+       y = "Depth (m)", fill = "Temp \n (C)")+
+  scale_x_continuous(breaks = c(0, 150, 300)) +
+  scale_fill_gradient(low = "blue",  high ="red")
+
+
+##lines 
+sensors |> 
+  filter(!Site %in% c(50,88,90, 100, 101)) |> 
+     mutate(Date1 = format(Date, "%d %b")) |> 
+  ggplot(aes(x = Temp_C, y = Depth_m, color = factor(Date1, levels = levels_db) ))+
+    facet_wrap(~factor(Site_code), scales = "fixed", ncol = 1)+
+  geom_point()+ #need shape here if not doing site type
+  geom_line(orientation = "y")+
+  scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
+  theme_bw()+ theme(legend.position = "right", text = element_text(size = 14),
+                    legend.text = element_text(size = 12),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Temp (C)",
+       y = "Depth (m)", color = "Sampling Date")
+
+
+
+
+```
+
+
+
+
 Stream to C1 for Main MS
 
 ```{r}
