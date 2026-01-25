@@ -114,8 +114,7 @@ hydro_TS_fig <- hydro_daily |>
          CCR_WaterLevel_m = Dam_daily_WaterLevel_m) |> 
   pivot_longer(-c(1:2)) |> 
   mutate(interp = ifelse(name != "HPB_stage_cm", "Observed", interp )) |> #fix interp column so just affects HPB where interp happened
-  
-  ggplot(aes(x = as.Date(Date), y = value, shape = interp))+
+    ggplot(aes(x = as.Date(Date), y = value, shape = interp))+
   geom_point()+
   scale_shape_manual(values = c("Observed" = 16, "Interp" = 1), guide = "none")+
   # scale_y_log10()+
@@ -133,6 +132,34 @@ hydro_TS_fig <- hydro_daily |>
 
 hydro_TS_fig
 
+plotly::ggplotly(hydro_TS_fig)
+
 # ggsave("./Figures/hydro_TS_figure.png", hydro_TS_fig, width = 6.5, height = 4.5, units = "in")
 
+
+## SI figure for HPB~USGS
+hydro_daily |> 
+  select(Date, HPB_daily_Stage_cm, Stage_Catawba_ft, Stage_Tinker_ft, predicted_hpb_T) |> 
+  rename(HPB_GAM_modeled_cm = predicted_hpb_T) |> 
+  pivot_longer(-1) |> 
+  ggplot(aes(x = Date, y = value))+
+  geom_point()+
+  facet_wrap(~name, scales = "free_y", ncol = 1)
+
+
+## some stats for paper 
+#Helene Rain
+helene_rain <- hydro_daily |> 
+  filter(Date >= ymd("2024-09-23"),
+         Date <= ymd("2024-10-02")) 
+
+sum(helene_rain$Daily_rain_mm)
+
+#Feb ice and rain
+# This website has some nice info to confirm these rain dates: https://weatherspark.com/h/m/146957/2025/2/Historical-Weather-in-February-2025-at-Roanoke-Regional-Airport-Woodrum-Field-Virginia-United-States
+feb_rain_snow_storm <- hydro_daily |> 
+  filter(Date >= ymd("2025-02-12"),
+         Date <= ymd("2025-02-16")) 
+
+sum(feb_rain_snow_storm$Daily_rain_mm)
 
