@@ -92,14 +92,14 @@ sqrt(mean((hydro_daily$predicted_hpb_C - hydro_daily$HPB_daily_Stage_cm)^2, na.r
 sqrt(mean((hydro_daily$predicted_hpb_T - hydro_daily$HPB_daily_Stage_cm)^2, na.rm = T))
 sqrt(mean((hydro_daily$predicted_hpb_CT - hydro_daily$HPB_daily_Stage_cm)^2, na.rm = T))
 
-
+#plot predicted vs observed
 hydro_daily |> 
-  ggplot(aes(x = predicted_hpb_CT, y = HPB_daily_Stage_cm))+
+  select(Date, HPB_daily_Stage_cm, Stage_Catawba_ft, Stage_Tinker_ft, predicted_hpb_T, predicted_hpb_C, predicted_hpb_CT) |> 
+  pivot_longer(-1) |> 
+  ggplot(aes(x = Date, y = value))+
   geom_point()+
-  stat_poly_line(method = "lm", linewidth = 2)+
-  stat_poly_eq(formula=y~x, label.x = "left", label.y="top", parse=TRUE, inherit.aes = F,
-               aes(x = predicted_hpb_CT , y = HPB_daily_Stage_cm , label=paste(..adj.rr.label..,..p.value.label..,sep="~~~"),size=3))+
-  theme_bw()
+  scale_y_log10()+
+  facet_wrap(~name, scales = "free_y", ncol = 1)
 
 
 
@@ -107,8 +107,9 @@ hydro_daily |>
 #### Hydrology MS timeseries figure ####
 
 hydro_TS_fig <- hydro_daily |> 
+  select(-predicted_hpb_C, -predicted_hpb_CT) |>  # keep predicted from T, based on plot above where modeled best represents increases arround storms 
   mutate(interp = ifelse(is.na(HPB_daily_Stage_cm), "Interp", "Observed")) |> 
-  mutate(HPB = ifelse(is.na(HPB_daily_Stage_cm), predicted_hpb_CT, HPB_daily_Stage_cm )) |> 
+  mutate(HPB = ifelse(is.na(HPB_daily_Stage_cm), predicted_hpb_T, HPB_daily_Stage_cm )) |> 
   select(Date, interp, Daily_rain_mm, HPB, Dam_daily_WaterLevel_m) |> 
   rename(HPB_stage_cm = HPB,
          CCR_WaterLevel_m = Dam_daily_WaterLevel_m) |> 
@@ -132,22 +133,42 @@ hydro_TS_fig <- hydro_daily |>
 
 hydro_TS_fig
 
-plotly::ggplotly(hydro_TS_fig)
+#plotly::ggplotly(hydro_TS_fig) #For interactive plots
 
 # ggsave("./Figures/hydro_TS_figure.png", hydro_TS_fig, width = 6.5, height = 4.5, units = "in")
 
 
 ## SI figure for HPB~USGS
-hydro_daily |> 
-  select(Date, HPB_daily_Stage_cm, Stage_Catawba_ft, Stage_Tinker_ft, predicted_hpb_T) |> 
+hpb_regress_timeseries <- hydro_daily |> 
+  select(Date, HPB_daily_Stage_cm, Stage_Tinker_ft, predicted_hpb_T) |> 
   rename(HPB_GAM_modeled_cm = predicted_hpb_T) |> 
   pivot_longer(-1) |> 
   ggplot(aes(x = Date, y = value))+
   geom_point()+
   facet_wrap(~name, scales = "free_y", ncol = 1)
 
+## check out predicted vs observed HPB values
+hpb_GAM_vs_observed <-  hydro_daily |> 
+  rename(HPB_GAM_modeled_cm = predicted_hpb_T) |> 
+  filter(!is.na(HPB_daily_Stage_cm)) |> 
+  ggplot(aes(x = HPB_GAM_modeled_cm, y = HPB_daily_Stage_cm))+
+  geom_point()+
+  stat_poly_line(method = "lm", linewidth = 2)+
+  stat_poly_eq(formula=y~x, label.x = "left", label.y="top", parse=TRUE, inherit.aes = F,
+               aes(x = predicted_hpb_CT , y = HPB_daily_Stage_cm , label=paste(..adj.rr.label..,..p.value.label..,sep="~~~"),size=3))+
+  theme_bw()
 
-## some stats for paper 
+library(patchwork)
+hpb_regress_timeseries | hpb_GAM_vs_observed
+
+HPB_regress_SI_fig <- cowplot::plot_grid(hpb_regress_timeseries, hpb_GAM_vs_observed, labels = c("a", "b"), ncol = 2)
+
+ # ggsave("./Figures/hpb_gam_SI_figure.png", HPB_regress_SI_fig, width = 6, height = 4, units = "in")
+
+
+
+####### some stats for paper #####
+
 #Helene Rain
 helene_rain <- hydro_daily |> 
   filter(Date >= ymd("2024-09-23"),
