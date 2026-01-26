@@ -79,25 +79,41 @@ sensors |>
   labs(x= "Distance from Stream (m)",
        y = "Depth (m)", fill = "Temp \n (C)")+
   scale_x_continuous(breaks = c(0, 150, 300)) +
-  scale_fill_gradient(low = "blue",  high ="red")
+  scale_fill_distiller(palette = "Spectral", direction = -1) #direction flips value order so red is higher
+  # scale_fill_gradient(low = "blue",  high ="red")
+  #scale_fill_gradient2(low = "red",  high ="blue",  midpoint = 80,  guide = "colourbar")
+
 
 
 ##lines 
-sensors |> 
+b1_c1_tempprofiles <- sensors |> 
   filter(!Site %in% c(50,88,90, 100, 101)) |> 
      mutate(Date1 = format(Date, "%d %b")) |> 
   ggplot(aes(x = Temp_C, y = Depth_m, color = factor(Date1, levels = levels_db) ))+
     facet_wrap(~factor(Site_code), scales = "fixed", ncol = 1)+
-  geom_point()+ #need shape here if not doing site type
+  geom_point(size =2)+ #need shape here if not doing site type
   geom_line(orientation = "y")+
   scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
+  scale_x_continuous(breaks = c(5,10,15,20,25,30))+
   theme_bw()+ theme(legend.position = "right", text = element_text(size = 14),
-                    legend.text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Temp (C)",
-       y = "Depth (m)", color = "Sampling Date")
+  labs(x= "Temp (C)", fill = element_blank(),
+       y = "Depth (m)", color = "Sampling Date")+
+    scale_color_brewer(palette = "Spectral", direction = -1) #direction flips value order so red is higher
 
+b1_c1_tempprofiles
 
+# plotly::ggplotly(b1_c1_tempprofiles)
+# 
+# ggsave("../Figures/TempProfiles_B1-C1.png", b1_c1_tempprofiles, width = 5, height = 5, units = "in")
+
+#get temp differences to determine startificaiton here
+sensors |> 
+  filter(!Site %in% c(100, 101)) |> 
+  select(Site, Site_code, Date, Depth_m, Temp_C) |> 
+  group_by(Site_code, Date) |> 
+  mutate(Strat_diff = max(Temp))
+  
 
 
 ```
@@ -129,17 +145,13 @@ cond_S1_C1 <- sensors |>
   facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
   geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
   scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
-  theme_bw()+ theme(legend.position = "right", text = element_text(size = 12),
-                    legend.text = element_text(size = 10),
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "Sp.Con\n (uS/cm)")+
-  scale_x_continuous(breaks = c(0, 150, 300)) +
-  scale_fill_gradient(low = "blue",  high ="red")
-  #scale_fill_gradient2(low = "blue",  high ="red", midpoint = 75,  guide = "colourbar")
+       y = "Depth (m)", fill = "Sp. Cond (uS/cm)")+ # can use \n to break the text
+ scale_fill_distiller(palette = "Spectral", direction = -1)
 
 cond_S1_C1
-#ggsave("MS_draft_figures/SpCond_S1-C1.png", cond_S1_C1, width = 9.5, height = 5.5, units = "in")
 
 #### Temp
 summary(sensors$Temp_C)
@@ -157,14 +169,13 @@ temp_S1_C1 <- sensors |>
   facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
   geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
   scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
-  theme_bw()+ theme(legend.position = "right", text = element_text(size = 14),
-                    legend.text = element_text(size = 12),
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "Temp \n (C)")+
+       y = "Depth (m)", fill = "Temp (C)")+
   scale_x_continuous(breaks = c(0, 150, 300)) +
-  scale_fill_gradient(low = "blue",  high ="red")
-  #scale_fill_gradient2(low = "blue",  high ="red", midpoint = median(sensors$Temp_C),  guide = "colourbar")
+  scale_fill_distiller(palette = "Spectral", direction = -1)
+
 
 temp_S1_C1
 
@@ -184,14 +195,12 @@ do_S1_C1 <- sensors |>
   facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
   geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
   scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5))+
-  theme_bw()+ theme(legend.position = "right", text = element_text(size = 14),
-                    legend.text = element_text(size = 12),
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)",
        y = "Depth (m)", fill = "DO \n (% sat)")+
   scale_x_continuous(breaks = c(0, 150, 300)) +
-  scale_fill_gradient(low = "blue",  high ="red")
-  #scale_fill_gradient2(low = "red",  high ="blue",  midpoint = 80,  guide = "colourbar")
+scale_fill_distiller(palette = "Spectral", direction = -1)
 
 do_S1_C1
 
@@ -203,7 +212,7 @@ sensors_S1_C1 <- cowplot::plot_grid(cond_S1_C1, temp_S1_C1, do_S1_C1, labels = c
 
 sensors_S1_C1
 
-ggsave("../Figures/sensors_S1_C1_fig.png", sensors_S1_C1, width = 10.5, height = 8, units = "in")
+#ggsave("MS_draft_figures/SpCond_S1-C1.png", cond_S1_C1, width = 9.5, height = 5.5, units = "in")
 
 
 ```
@@ -231,8 +240,7 @@ SpCond_fig <- sensors |>
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)", y = "Depth (m)", color = "Sp. Cond (uS/cm)")+
   scale_x_continuous(breaks = c(0, 600, 1200)) +
-  scale_color_gradient(low = "blue",  high ="red")
- #scale_color_gradient2(low = "blue",  high ="red", breaks = c(25,75,125), midpoint = 75,  guide = "colourbar")
+  scale_color_distiller(palette = "Spectral", direction = -1, breaks = c(25,75,125))
 
 SpCond_fig
 
@@ -253,8 +261,7 @@ Temp_fig <- sensors |>
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)", y = "Depth (m)", color = "Temp (C)")+
   scale_x_continuous(breaks = c(0, 600, 1200)) +
-  scale_color_gradient(low = "blue",  high ="red")
- # scale_color_gradient2(low = "blue",  high ="red", breaks = c(5,15,25),  midpoint = 15,  guide = "colourbar")
+  scale_color_distiller(palette = "Spectral", direction = -1)
 
 Temp_fig
 
@@ -275,8 +282,7 @@ DO_fig <- sensors |>
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)", y = "Depth (m)", color = "DO (% sat)")+
   scale_x_continuous(breaks = c(0, 600, 1200)) +
-  scale_color_gradient(low = "blue",  high ="red")
- #scale_color_gradient2(low = "blue",  high ="red", breaks = c(25,75,125), midpoint = 75,  guide = "colourbar")
+  scale_color_distiller(palette = "Spectral", direction = -1, breaks = c(25,75,125))
 
 DO_fig
 
@@ -287,7 +293,7 @@ library(patchwork)
 sensors_S1_P2 <- cowplot::plot_grid(SpCond_fig, Temp_fig, DO_fig, labels = c("a", "b", "c"), ncol = 1)
 
 sensors_S1_P2
-#ggsave("../Figures/sensors_S1_P2_SI_fig.png", sensors_S1_P2, width = 10, height = 8, units = "in")
+# ggsave("../Figures/sensors_S1_P2_SI_fig.png", sensors_S1_P2, width = 11, height = 8, units = "in")
 
 
 
