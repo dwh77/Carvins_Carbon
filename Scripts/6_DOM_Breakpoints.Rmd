@@ -28,14 +28,15 @@ chem <- read_csv("../Data/chemistry_joined.csv")
 levels <- c("BIX", "HIX", "FI", "Peak_A", "Peak_T", "A_T", "a254_m", "SUVA254")
 levels <- c("BIX", "HIX", "A_T", "SUVA254")
 #all variable options
-levels <- c("DOC_mgL", "DON_mgL", "BIX", "HIX", "A_T", "NO3NO2_ugL", "NH4_ugL", "SRP_ugL","D_excess")
+levels <- c("DOC_mgL", "BIX", "HIX", "d18O_VSMOW", "d2H_VSMOW", "D_excess")
 levels <- c("DOC_mgL", "BIX", "HIX", "NO3_ugL", "D_excess")
-levels <- c("DOC_mgL", "BIX")
+levels <- c("DOC_mgL", "DON_mgL", "BIX", "HIX", "A_T", "NO3NO2_ugL", "NH4_ugL", "SRP_ugL","D_excess")
 
 
 #Across dates
 chem |> 
   pivot_longer(-c(1:8)) |> 
+  # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
   ggplot(aes(x = Distance, y = value, fill = Depth_m))+
    geom_point(shape = 21, size = 4) +
@@ -49,7 +50,8 @@ chem |>
 
 #By dates
 chem |> 
-  pivot_longer(-c(1:8)) |> 
+  pivot_longer(-c(1:8)) |>  
+  # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
   ggplot(aes(x = Distance, y = value, fill = Depth_m))+
   geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
@@ -69,85 +71,6 @@ chem |>
 
 
 
-Isotope boundary mixing 
-
-```{r}
-
-levels <- c("DOC_mgL", "BIX", "HIX", "d18O_VSMOW", "d2H_VSMOW", "D_excess")
-
-chem |> 
-  filter(!Site %in% c(50,88,90)) |> 
-  pivot_longer(-c(1:10)) |> 
-  filter(name %in% levels) |> 
-  ggplot(aes(x = Distance, y = value, fill = Depth_m))+
-  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
-            alpha = 0.1, fill = "gray", color = NA )+ #color gets rid of border
-  facet_grid(name~Date, scales = "free_y")+
-  geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)",
-       shape = "Site Type")+
-  scale_x_continuous(breaks = c(0, 150, 300))+ #c(250, 750)
-  #scale_shape_manual(values = c(24, 22, 21, 25))+ #18, 15, 16, 17
-  scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 0.7,  guide = "colourbar", breaks = c(0,1,2,3))
-
-
-```
-
-
-
-
-## Depth on Y trials
-
-```{r}
-levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
-               "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
-
-
-#BIX by day
-chem |> 
-    mutate(Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
-         Dry_end = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA)) |> #so just one row has info for dry start and end, was having issues where laying multiple rectangles for more observations affected shading color
-  mutate(Date1 = format(Date, "%d %b")) |> 
-  ggplot(aes(x = Distance, y = Depth_m, fill = BIX))+
-  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
-            alpha = 0.5, fill = "gray", color = NA )+ #color gets rid of border
-  facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
-  geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
-  scale_y_reverse()+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    legend.text = element_text(size = 12),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "BIX")+
-  scale_x_continuous(breaks = c(0, 600, 1200))+  
-  #scale_fill_gradient(low = "blue",  high ="red")
- scale_fill_gradient2(low = "blue",  high ="red",
-                       midpoint = median(chem$BIX),  guide = "colourbar")
-
-
-#BIX across days
-chem |> 
-  # filter(BIX < 0.85) |> 
-  ggplot(aes(x = Distance, y = Depth_m, fill = BIX))+
-    # geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
-  geom_jitter(size = 3, shape = 21, width = 20, height = 0.1)+ #need shape here if not doing site type
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    legend.text = element_text(size = 12),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "BIX")+
-  scale_x_continuous(breaks = c(0, 600, 1200))+  
-  scale_y_reverse()+
-  #scale_y_continuous(trans = ggforce::trans_reverser('log10')) + annotation_logticks(sides = 'l') + #for log reversed y axis
- scale_fill_gradient(low = "brown",  high ="green")
- scale_fill_gradient(low = "brown",  high ="green", limits = c(0.3, 1), 
-                         guide = "colourbar")
-
-
-```
 
 
 ## Make nice plots of each variable
