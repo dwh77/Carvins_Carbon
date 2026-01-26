@@ -17,7 +17,7 @@ iso <- read_csv("./Data/chemistry_joined.csv")
 
 #plot over distance 
 ##d2H and d18O and D excess
-iso |> 
+isotopes_across_space_fig <- iso |> 
   dplyr::select(1:8, d18O_VSMOW, d2H_VSMOW, D_excess) |> 
   pivot_longer(-c(1:8)) |> 
   ggplot(aes(x = Distance, y = value, fill = Depth_m
@@ -32,6 +32,9 @@ iso |>
   scale_fill_gradient2(low = "red",  high ="blue",
                        midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15, 20))
 
+isotopes_across_space_fig
+
+# ggsave("./Figures/Iso_overSpace_SI_fig.png", isotopes_across_space_fig, width = 6.5, height = 3.5, units = "in")
 
 
 #### Iso timeseries with rain ####
@@ -72,7 +75,7 @@ scale_factor <- max_dexcess / max_rain
 
 # Build plotting dataset with rain
 
-plot_data_surface |> 
+iso_rain_surface_fig <- plot_data_surface |> 
   ggplot() +
   # Rain bars (no legend)
   geom_col(aes(x = Date, y = Daily_rain_mm * scale_factor),
@@ -91,7 +94,7 @@ plot_data_surface |>
             size = 1.3) +
   
   # Labels and annotation
-  labs(x = "Date", y = "Deuterium excess", color = "Site", shape = "Site") +
+  labs(x = "Date", y = "d-excess (\u2030)", color = "Site", shape = "Site") +
   # annotate("text", x = ymd("2024-06-01"), y = 18,
   #          label = "D excess = dD - 8*d18O",
   #          size = 5, color = "black", hjust = 0) +
@@ -107,7 +110,7 @@ plot_data_surface |>
   guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
   
   # Manual scales with enforced order
-  scale_x_date(date_labels = "%b %Y ")+
+  scale_x_date(date_labels = "%b %Y ", date_breaks = "3 month" )+
   scale_color_manual(values = site_colors, breaks = iso_levels_sites) +
   scale_shape_manual(values = site_shapes, breaks = iso_levels_sites) +
   
@@ -115,6 +118,10 @@ plot_data_surface |>
   scale_y_continuous(
     sec.axis = sec_axis(~ . / scale_factor, name = "Rainfall (mm)")
   )
+
+iso_rain_surface_fig
+
+# ggsave("./Figures/Iso_Rain_surf_MS_fig.png", iso_rain_surface_fig, width = 6.5, height = 4, units = "in")
 
 
 #### Make plots for 0.1 and BOT ####
@@ -138,7 +145,8 @@ plot_data_surf_bot <- iso %>%
          Depth_new = as.character(ifelse(Site %in% c(88,50) & Depth_m > 9, "BOT", Depth_new))
   ) |> 
   filter(Depth_new %in% c("0.1", "BOT")) |> 
-  full_join(hydro, by = "Date") 
+  full_join(hydro, by = "Date") |> 
+  mutate(Depth_new = ifelse(is.na(Depth_new), "0.1", Depth_new)) #Making all rows where is just precip data have a depth assoiated so there's no NA in the legend
 
 
 # Scaling factor for rainfall bars
@@ -148,7 +156,7 @@ scale_factor <- max_dexcess / max_rain
 
 
 #### Plot surface and bottom with rain
-plot_data_surf_bot |> 
+iso_rain_SURFBOT_fig <- plot_data_surf_bot |> 
   ggplot() +
   # Rain bars (no legend)
   geom_col(aes(x = Date, y = Daily_rain_mm * scale_factor),
@@ -168,11 +176,11 @@ plot_data_surf_bot |>
             size = 1.3) +
   
   # Labels and annotation
-  labs(x = "Date", y = "Deuterium excess",
+  labs(x = "Date", y = "d-excess (\u2030)",
        color = "Site", shape = "Site", linetype = "Depth") +
-  annotate("text", x = ymd("2024-06-01"), y = 18,
-           label = "D excess = dD - 8*d18O",
-           size = 5, color = "black", hjust = 0) +
+  # annotate("text", x = ymd("2024-06-01"), y = 18,
+  #          label = "D excess = dD - 8*d18O",
+  #          size = 5, color = "black", hjust = 0) +
   
   # Theme
   theme_bw() +
@@ -198,6 +206,9 @@ plot_data_surf_bot |>
     sec.axis = sec_axis(~ . / scale_factor, name = "Rainfall (mm)")
   )
 
+iso_rain_SURFBOT_fig
+
+# ggsave("./Figures/Iso_Rain_surfBOT_SI_fig.png", iso_rain_SURFBOT_fig, width = 6.5, height = 5, units = "in")
 
 
 
