@@ -13,7 +13,11 @@ library(tidyverse)
 library(patchwork) # so you can arragne figures by "/" or "|"
 
 ## read in chem data
-chem <- read_csv("../Data/chemistry_joined.csv")
+chem <- read_csv("../Data/chemistry_joined.csv")  |> 
+    filter(!(Site == 88 & Depth_m == 1.5)) |> 
+    filter(!(Site == 88 & Depth_m == 9)) |> 
+    filter(!(Site == 50 & Depth_m == 1.5)) |> 
+    filter(!(Site == 50 & Depth_m == 9))
 
 ```
 
@@ -29,7 +33,6 @@ levels <- c("BIX", "HIX", "FI", "Peak_A", "Peak_T", "A_T", "a254_m", "SUVA254")
 levels <- c("BIX", "HIX", "A_T", "SUVA254")
 #all variable options
 levels <- c("DOC_mgL", "BIX", "HIX", "d18O_VSMOW", "d2H_VSMOW", "D_excess")
-levels <- c("DOC_mgL", "BIX", "HIX", "NO3_ugL", "D_excess")
 levels <- c("DOC_mgL", "DON_mgL", "BIX", "HIX", "A_T", "NO3NO2_ugL", "NH4_ugL", "SRP_ugL","D_excess")
 
 
@@ -48,28 +51,44 @@ chem |>
   scale_fill_gradient2(low = "red",  high ="blue",
                        midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
 
+
+```
+
+
+## SI figure of chem variables by date
+
+```{r}
+levels <- c("DOC_mgL", "BIX", "HIX", "NO3NO2_ugL", "D_excess")
+
+levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
+               "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
+
 #By dates
-chem |> 
+Chem_by_date_SI_fig <- chem |> 
   pivot_longer(-c(1:8)) |>  
   # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
+  mutate(Date1 = format(Date, "%d %b")) |> 
   ggplot(aes(x = Distance, y = value, fill = Depth_m))+
   geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
             alpha = 0.1, fill = "gray", color = NA )+ #color gets rid of border
   geom_point(shape = 21, size = 4) + #shape = 21,
   #geom_smooth()+ # add ', warning=FALSE' to chunk to see plot
-  facet_grid(factor(name, levels = levels)~Date, scales = "free_y")+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
+  facet_grid(factor(name, levels = levels)~factor(Date1, levels = levels_db), scales = "free_y")+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 14),
+                    axis.text.x = element_text(angle = 45, hjust = 1), #can make angle = 45 and hjust = 1 to shift x label
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)", fill = "Depth (m)")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
+  scale_x_continuous(breaks = c(0, 600, 1200))+ 
   scale_fill_gradient2(low = "red",  high ="blue",
                        midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
 
+Chem_by_date_SI_fig
+
+# ggsave("../Figures/Chem_by_Date_SI.png", height = 8, width = 11, units = "in")
+
 
 ```
-
-
 
 
 
@@ -142,28 +161,22 @@ shapiro.test(chem$d2H_VSMOW)
 
 
 
-
-
-
 ## Make boxplots across sites for each variable 
-
-how many samples are different site types depending on grouping
-```{r}
-#changing sites
-chem |>   group_by(Site_Class) |> 
-  summarise(Count = n()) 
-
-#fixed
-chem |>   group_by(Site_Type_static) |> 
-  summarise(Count = n()) 
-
-```
-
-
 
 Try function for making all the boxplots
 
 ```{r}
+
+## first add site type to chem data frame 
+chem_kruskal <- chem |> 
+  mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
+         Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
+         Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),
+         Site_Type = ifelse(Site_code %in% c("P1", "P2"), "Pelagic", Site_Type)
+         )
+
+
+
 library(tidyverse)
 library(FSA)
 library(rcompanion)
@@ -172,7 +185,7 @@ library(rlang)
 
 #### Function
 
-make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type_static", level_order = c("Stream", "Backwater", "Cove", "Pelagic")) {
+make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type", level_order = c("Stream", "Backwater", "Cove", "Pelagic")) {
   
   group_sym <- rlang::sym(group_var)
   response_sym <- rlang::sym(response_var)
@@ -198,14 +211,14 @@ make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type_stat
   p <- ggplot(df_plot, aes(x = factor(!!group_sym, levels = level_order), y = !!response_sym)) +
     geom_boxplot(outlier.alpha = 0) +
     geom_jitter(width = 0.2) +
-    stat_compare_means(method = "kruskal.test", label.y = label_y * 0.9, label.x = 1.3, size = 4) +
-    geom_text(aes(label = Letter), y = label_y, size = 5) +
+    stat_compare_means(method = "kruskal.test", label.y = label_y * 1.1, label.x = 1.3, size = 4) +
+    geom_text(aes(label = Letter), y = label_y * 1.05, size = 5) +
     theme_bw() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          text = element_text(size = 16),
+    theme(#axis.text.x = element_text(angle = 0, hjust = 0), #can make angle = 45 and hjust = 1 to shift x label
+          text = element_text(size = 12),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank()) +
-    labs(x = "Site Type (Static)", y = response_var)
+    labs(x = "Site Type", y = response_var)
   
   return(p)
 }
@@ -213,15 +226,15 @@ make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type_stat
 
 #### Run function 
 response_vars <- c(
-                   "BIX", "HIX", "AT", "SUVA254", 
+                   "BIX", "HIX", "A_T", "SUVA254", 
                    "DOC_mgL", "DN_mgL", "DON_mgL",
-                   "NH4_ugL", "NO3_ugL", "PO4_ugL",
+                   "NH4_ugL", "NO3NO2_ugL", "SRP_ugL",
                    "d18O_VSMOW", "d2H_VSMOW", "D_excess"
                    )  
 
 # Generate plots for each variable
 plots <- lapply(response_vars, function(var) {
-  make_kruskal_dunn_plot(chem, response_var = var)
+  make_kruskal_dunn_plot(chem_kruskal, response_var = var)
 })
 
 # Optionally name the plots
@@ -231,33 +244,52 @@ names(plots) <- response_vars
 #### Make plots 
 
 #view just one
-plots[["DOC_mean"]]  # Or use gridExtra::grid.arrange() to show multiple
-plots$BIX_mean
+plots[["DOC_mgL"]]  # Or use gridExtra::grid.arrange() to show multiple
+plots$BIX
 
 #make a few plots in groups 
 library(gridExtra)
-gridExtra::grid.arrange(plots$BIX, plots$HIX, plots$AT, plots$SUVA254, nrow = 1) #EEM
+gridExtra::grid.arrange(plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, nrow = 1) #EEM
 gridExtra::grid.arrange(plots$DOC_mgL, plots$DON_mgL, nrow = 1) #DOM
-gridExtra::grid.arrange(plots$NO3_ugL, plots$NH4_ugL, plots$DN_mgL, plots$PO4_ugL, nrow = 1) #Nutrients
+gridExtra::grid.arrange(plots$NO3NO2_ugL, plots$NH4_ugL, plots$DN_mgL, plots$SRP_ugL, nrow = 1) #Nutrients
 gridExtra::grid.arrange(plots$d18O_VSMOW, plots$d2H_VSMOW, plots$D_excess, nrow = 1) #Isotopes
 
 
+
+### DOM plot for MS 
+
+# gridExtra::grid.arrange(plots$DOC_mgL, plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, nrow = 2) #EEM
+
+
+DOM_boxplots_MS <- cowplot::plot_grid(plots$DOC_mgL, plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, labels = c("a", "b", "c", "d", "e"), nrow = 2)
+
+DOM_boxplots_MS
+
+# ggsave("../Figures/DOM_boxplot_MS.png", DOM_boxplots_MS, height = 6, width = 8, units = "in")
+
 #plot all plots at once; too busy for all 13
-library(patchwork)
-wrap_plots(plots) #makes all the plots
+# library(patchwork)
+# wrap_plots(plots) #makes all the plots
+
+
+##nutrient boxplots for SI
+nutrient_boxplots_SI <- cowplot::plot_grid(plots$NO3NO2_ugL, plots$NH4_ugL, plots$SRP_ugL, labels = c("a", "b", "c"), nrow = 1)
+
+ # ggsave("../Figures/Nutrient_boxplot_SI.png", nutrient_boxplots_SI, height = 3, width = 8.5, units = "in")
 
 
 ```
 
 
-quick stats
+##Some summary stats
+
+DOC
 
 ```{r}
 
-chem |> 
-  ungroup() |> 
-  select(Site_Type_static, DOC_mgL, HIX, BIX, NO3_ugL, D_excess) |> 
-  group_by(Site_Type_static) %>%
+chem_kruskal |> 
+  dplyr::select(Site_Type, DOC_mgL, HIX, BIX, NO3NO2_ugL, D_excess) |> 
+  group_by(Site_Type) %>%
   summarise(across(
     .cols = where(is.numeric),
     .fns = list(
@@ -266,17 +298,57 @@ chem |>
       min    = ~min(.x, na.rm = TRUE),
       max    = ~max(.x, na.rm = TRUE),
       range  = ~max(.x, na.rm = TRUE) - min(.x, na.rm = TRUE)
-
-
     ),
     .names = "{.col}_{.fn}"
   ))
 
-chem_summary
 
+## DOC plot over time
+doc_by_day <- chem |> 
+  ggplot(aes(x = Distance, y = DOC_mgL, fill = Depth_m))+
+  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
+            alpha = 0.1, fill = "gray", color = NA )+ #color gets rid of border
+  geom_point(shape = 21, size = 4) +
+  facet_wrap(~Date, scales = "fixed")+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)", fill = "Depth (m)")+
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
+  scale_fill_gradient2(low = "red",  high ="blue",
+                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
+
+plotly::ggplotly(doc_by_day)
+
+
+#DOC range within pelagic sites
+chem_kruskal |> filter(Site_Type == "Pelagic") |> 
+  dplyr::select(Date, Site_code, DOC_mgL) |> 
+  group_by(Date, Site_code) |> 
+  summarise(across(
+    .cols = where(is.numeric),
+    .fns = list(
+      mean   = ~mean(.x, na.rm = TRUE),
+      median = ~median(.x, na.rm = TRUE),
+      min    = ~min(.x, na.rm = TRUE),
+      max    = ~max(.x, na.rm = TRUE),
+      range  = ~max(.x, na.rm = TRUE) - min(.x, na.rm = TRUE)
+    ),
+    .names = "{.col}_{.fn}"
+  )) |> 
+  arrange(Site_code)
 
 ```
 
+Nutrients
+
+```{r}
+chem |> filter(SRP_ugL > 5)
+
+gridExtra::grid.arrange(plots$NO3NO2_ugL, plots$NH4_ugL, plots$DN_mgL, plots$SRP_ugL, nrow = 1) #Nutrients
+
+
+
+```
 
 
 ########################### Breakpoints ###################################
@@ -356,9 +428,9 @@ plot_segmented_breakpoint <- function(df, response_var, predictor_var = "Distanc
 
 # List of response variables to analyze
 response_vars <- c(
-                   "BIX", "HIX", "AT", "SUVA254", 
+                   "BIX", "HIX", "A_T", "SUVA254", 
                    "DOC_mgL", "DN_mgL", "DON_mgL",
-                   "NH4_ugL", "NO3_ugL", "PO4_ugL",
+                   "NH4_ugL", "NO3NO2_ugL", "SRP_ugL",
                    "d18O_VSMOW", "d2H_VSMOW", "D_excess"
                    )  
 
@@ -380,74 +452,20 @@ wrap_plots(segmented_plots, ncol = 3)
 library(gridExtra)
 #EEMs
 gridExtra::grid.arrange(segmented_plots$BIX, segmented_plots$HIX, 
-                        segmented_plots$AT, segmented_plots$SUVA254, nrow = 1) #EEM
+                        segmented_plots$A_T, segmented_plots$SUVA254, nrow = 1) #EEM
 #DOM
 gridExtra::grid.arrange(segmented_plots$DOC_mgL, segmented_plots$DON_mgL, nrow = 1) #DOM
 #Nuts
-gridExtra::grid.arrange(segmented_plots$NO3_ugL, segmented_plots$NH4_ugL, 
-                        segmented_plots$DN_mgL, segmented_plots$PO4_ugL, nrow = 1) #Nutrients
+gridExtra::grid.arrange(segmented_plots$NO3NO2_ugL, segmented_plots$NH4_ugL, 
+                        segmented_plots$DN_mgL, segmented_plots$SRP_ugL, nrow = 1) #Nutrients
 #Iso
 gridExtra::grid.arrange(segmented_plots$d18O_VSMOW, segmented_plots$d2H_VSMOW, 
                         segmented_plots$D_excess, nrow = 1) #Isotopes
 
 
-#for comm meeting
-
-gridExtra::grid.arrange(segmented_plots$DOC_mgL,
-                        segmented_plots$BIX, nrow = 2) 
-
-
 ```
 
-Stack breakpoints and boxplots
 
-```{r}
-
-#### Main variables for MS figure
-gridExtra::grid.arrange(segmented_plots$BIX, segmented_plots$DOC_mgL, 
-                        segmented_plots$D_excess, segmented_plots$NO3_ugL,
-                        plots$BIX, plots$DOC_mgL, plots$D_excess, plots$NO3_ugL, nrow = 2)
-
-
-
-#### EEMs
-gridExtra::grid.arrange(segmented_plots$BIX, segmented_plots$HIX, 
-                        segmented_plots$AT, segmented_plots$SUVA254,
-                        plots$BIX, plots$HIX, plots$AT, plots$SUVA254, ncol = 1)
-
-## EEMs just breakpoints 
-eem_break_stack <- gridExtra::grid.arrange(segmented_plots$BIX, segmented_plots$HIX, 
-                        segmented_plots$AT, segmented_plots$SUVA254, ncol = 1)
-
-ggsave("MS_draft_figures/EEM_breakpoints.png", eem_break_stack, width = 4.5, height = 10, units = "in")
-
-eem_break_stackbox <- gridExtra::grid.arrange(segmented_plots$BIX, plots$BIX,
-                                              segmented_plots$HIX, plots$HIX,
-                        segmented_plots$AT, plots$AT, segmented_plots$SUVA254, plots$SUVA254, ncol = 2)
-
-ggsave("MS_draft_figures/EEM_breakpoints_Stack.png", eem_break_stackbox, width = 9, height = 10, units = "in")
-
-
-
-#### DOM
-gridExtra::grid.arrange(segmented_plots$DOC_mgL, segmented_plots$DON_mgL,
-                        plots$DOC_mgL, plots$DON_mgL, nrow = 2) #DOM
-
-
-#### Nutrients
-gridExtra::grid.arrange(segmented_plots$NO3_ugL, segmented_plots$NH4_ugL, 
-                        segmented_plots$DN_mgL, segmented_plots$PO4_ugL,
-                        plots$NO3_ugL, plots$NH4_ugL, plots$DN_mgL, plots$PO4_ugL, nrow = 2) #Nutrients
-
-
-#### Isotopes
-gridExtra::grid.arrange(segmented_plots$d18O_VSMOW, segmented_plots$d2H_VSMOW, 
-                        segmented_plots$D_excess,
-                        plots$d18O_VSMOW, plots$d2H_VSMOW, plots$D_excess, nrow = 2) #Isotopes
-
-
-
-```
 
 
 
@@ -555,125 +573,19 @@ slope(my.seg)
 
 
 
-Look at breakpoint across surface vs max depth
-
-```{r}
-
-##surface 
-surface_df <- chem |> 
-  filter(Depth_m == 0.1)
-  
-
-#fit normal linear regression 
-my.lm <- lm(BIX ~ Distance, data = surface_df)
-summary(my.lm)
-
-#Run breakpoint
-my.seg <- segmented(my.lm,  seg.Z = ~ Distance,  psi = 2 )
-summary(my.seg)
-my.seg$psi
-slope(my.seg)
-
-#fit breakpoint segments to distance data
-my.fitted <- fitted(my.seg)
-my.model <- data.frame(Distance = surface_df$Distance, BIX_fit = my.fitted)
-
-#get breakpoint lines
-my.lines <- my.seg$psi[ , 2]
-
-#plot
-surface_df |> 
-  ggplot(aes(x = Distance, y = BIX, fill = Depth_m))+
-  geom_point(shape = 21, size = 4) + #shape = 21,
-  # geom_smooth()+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "BIX", fill = "Depth (m)",
-       shape = "Site Type")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-  ggtitle("0.1m")+ ylim(0.45,0.9)+
-  scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
-  #geom_smooth()+
-  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
-  geom_line(data = my.model, aes(x = Distance, y = BIX_fit), size = 1, inherit.aes = FALSE ) 
 
 
-
-
-
-
-
-
-### Max depth
-max_depth_df <- chem |> 
-  group_by(Site, Date) |> 
-  mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
-  ungroup() |> 
-  filter(max_depth == "Max")
-  
-
-#fit normal linear regression 
-my.lm <- lm(BIX ~ Distance, data = max_depth_df)
-summary(my.lm)
-
-#Run breakpoint
-my.seg <- segmented(my.lm,  seg.Z = ~ Distance,  psi = 2 )
-summary(my.seg)
-my.seg$psi
-slope(my.seg)
-
-#fit breakpoint segments to distance data
-my.fitted <- fitted(my.seg)
-my.model <- data.frame(Distance = max_depth_df$Distance, BIX_fit = my.fitted)
-
-#get breakpoint lines
-my.lines <- my.seg$psi[ , 2]
-
-#plot
-max_depth_df |> 
-  ggplot(aes(x = Distance, y = BIX, fill = Depth_m))+
-  geom_point(shape = 21, size = 4) + #shape = 21,
-  # geom_smooth()+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "BIX", fill = "Depth (m)",
-       shape = "Site Type")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-  ggtitle("Max Depth")+ ylim(0.45,0.9)+
-  scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
-  #geom_smooth()+
-  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
-  geom_line(data = my.model, aes(x = Distance, y = BIX_fit), size = 1, inherit.aes = FALSE ) 
-
-
-
-
-
-```
-
-
-
-## AGU breakpoints/ MS cleanups
+## Breakpoint figures for MS 
 
 BIX
 ```{r}
 
-#testing running regression with removing extra 1.5 and 9m values from pelagic sites
-chem <- chem |> 
-  filter(!(Site == 50 & Depth_m == 1.5)) |> 
-  filter(!(Site == 88 & Depth_m == 1.5)) |> 
-  filter(!(Site == 50 & Depth_m == 9)) |> 
-  filter(!(Site == 88 & Depth_m == 9))
-
 #testing running regression with just surface
-chem <- chem |> 
-  filter(Depth_m == 0.1) 
+# chem <- chem |> 
+#   filter(Depth_m == 0.1) 
 
 #testing running regression with just max depth 
-chem <- chem |> 
-  filter(Depth_m == 0.1) 
+   #grab this code from above
 
 ### BIX
 chem$Distance <- round(chem$Distance, 0) #get rid of decimals in distance
@@ -704,36 +616,35 @@ dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
 
 #get breakpoint lines
 my.lines <- my.seg$psi[ , 2]
+my.lines.SE <- my.seg$psi[ , 3]
 
 #### plot with  color 
-chem |> 
+BIX_breakpoint <- chem |> 
   ggplot(aes(x = Distance, y = BIX, fill = Depth_m))+
-  geom_point(shape = 21, size = 4) + #shape = 21,
+  geom_rect(aes(xmin = (my.lines - my.lines.SE), xmax = (my.lines + my.lines.SE), ymin = -Inf, ymax = Inf), 
+            alpha = 0.1, fill = "gray", color = NA )+  ## add breakpoint line SE
+  geom_point(shape = 21, size = 4) + 
   #  geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
-  # geom_smooth()+
   theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "Biological Index (BIX)", fill = "Depth (m)",
-       shape = "Site Type")+
+  labs(x= "Distance from Stream (m)", y = "Biological Index (BIX)", fill = "Depth (m)")+
   scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-   scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
-  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
-  geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) 
+  scale_fill_gradient2(low = "red",  high ="blue", midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
+  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) + ##add breakpoint line
+  geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) ## add breakpoint slopes
 
-
-
-
+BIX_breakpoint
 
 
 ```
+
 
 DOC
 ```{r}
 ### DOC
 chem$Distance <- round(chem$Distance, 0) #get rid of decimals in distance
-#### Fit breakpoint 
 
+#### Fit breakpoint 
 #fit normal linear regression 
 my.lm <- lm(DOC_mgL ~ Distance, data = chem)
 summary(my.lm)
@@ -753,75 +664,252 @@ dist_gradient <- data.frame(Distance = seq(0, 1528, by = 1))
 # Predict from segmented model to continuous distnace
 dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
 
-##old
-# my.fitted <- fitted(my.seg)
-# my.model <- data.frame(Distance = chem$Distance, DOC_fit = my.fitted)
-
 #get breakpoint lines
 my.lines <- my.seg$psi[ , 2]
-
-set.seed(123)
-
-#### plot with no color & NO LINE
-doc_agu_nocolor_noline <- chem |> 
-  ggplot(aes(x = Distance, y = DOC_mgL))+
-  #geom_point(shape = 21, size = 4) + #shape = 21,
-    geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
-  # geom_smooth()+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "DOC (mg/L)", fill = "Depth (m)",
-       shape = "Site Type")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))
-
-set.seed(123)
-
-#### plot with no color 
-doc_agu_nocolor <- chem |> 
-  ggplot(aes(x = Distance, y = DOC_mgL))+
-  #geom_point(shape = 21, size = 4) + #shape = 21,
-    geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
-  # geom_smooth()+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "DOC (mg/L)", fill = "Depth (m)",
-       shape = "Site Type")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
-  geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) 
-
-set.seed(123)
+my.lines.SE <- my.seg$psi[ , 3]
 
 #### plot with  color 
-doc_agu_color <- chem |> 
+DOC_breakpoint <- chem |> 
   ggplot(aes(x = Distance, y = DOC_mgL, fill = Depth_m))+
-  #geom_point(shape = 21, size = 4) + #shape = 21,
-    geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
-  # geom_smooth()+
+  geom_rect(aes(xmin = (my.lines - my.lines.SE), xmax = (my.lines + my.lines.SE), ymin = -Inf, ymax = Inf), 
+            alpha = 0.1, fill = "gray", color = NA )+ ## add breakpoint line SE
+  geom_point(shape = 21, size = 4) + 
+  #  geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
   theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "DOC (mg/L)", fill = "Depth (m)",
-       shape = "Site Type")+
+  labs(x= "Distance from Stream (m)", y = "DOC (mg/L)", fill = "Depth (m)")+
   scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-   scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
-  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+  scale_fill_gradient2(low = "red",  high ="blue", midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
+  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) + ##add breakpoint line
+  geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) ## add breakpoint slopes
+
+  ## add breakpoint slopes
   geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) 
 
-library(cowplot)
-plot_grid(doc_agu_nocolor, doc_agu_color, align = "h", axis = "tb")
-
-
-ggsave("AGU25_figs/DOC_breakpoints.png", width = 12, height = 4.5, units = "in")
-
-
-plot_grid(doc_agu_nocolor_noline, doc_agu_color, align = "h", axis = "tb")
-
-
-ggsave("AGU25_figs/DOC_NO_breakpoints.png", width = 12, height = 4.5, units = "in")
+DOC_breakpoint
 
 
 ```
+
+#### Surface v bottom breakpoints/abbreviated breakpoint code
+
+Make a function to run these easier 
+
+```{r}
+library(tidyverse)
+library(segmented)
+library(rlang)
+
+run_breakpoint_analysis <- function(df, response_var, depth_var = "Depth_m") {
+  
+  # Convert response variable to symbol
+  y <- sym(response_var)
+  
+  # Fit linear model
+  my.lm <- lm(as.formula(paste(response_var, "~ Distance")), data = df)
+  
+  # Davies test
+  davies <- davies.test(my.lm, k = 10)
+  
+  # Segmented model
+  my.seg <- segmented(my.lm, seg.Z = ~ Distance, psi = 2)
+  
+  # Prediction grid
+  dist_gradient <- data.frame(Distance = seq(0, max(df$Distance, na.rm = TRUE), by = 1))
+  dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
+  
+  # Breakpoint + SE
+  my.lines <- my.seg$psi[, 2]
+  my.lines.SE <- my.seg$psi[, 3]
+  
+  # Build plot
+  p <- df |>
+    ggplot(aes(x = Distance, y = !!y, fill = .data[[depth_var]])) +
+    geom_rect(
+      aes(
+        xmin = (my.lines - my.lines.SE),
+        xmax = (my.lines + my.lines.SE),
+        ymin = -Inf, ymax = Inf
+      ),
+      alpha = 0.1, fill = "gray", color = NA
+    ) +
+    geom_point(shape = 21, size = 4) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      text = element_text(size = 14),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    labs(
+      x = "Distance from Stream (m)",
+      y = paste0(response_var),
+      fill = "Depth (m)"
+    ) +
+    scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
+    scale_fill_gradient2(
+      low = "red", high = "blue", midpoint = 6, #could do median(df[[depth_var]], na.rm = TRUE)
+      guide = "colourbar"
+    ) +
+    geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+    geom_line(
+      data = dist_gradient,
+      aes(x = Distance, y = fit),
+      size = 1,
+      inherit.aes = FALSE
+    )
+  
+  # Return everything as a list
+  list(
+    plot = p,
+    segmented_summary = summary(my.seg),
+    segmented_slopes = slope(my.seg),
+    davies_test = davies
+  )
+}
+
+
+```
+
+
+set up surface and max depth DFs
+
+
+```{r}
+
+chem_surf <- chem |> 
+  filter(Depth_m == 0.1)
+
+
+max_depth_df <- chem |> 
+  group_by(Site, Date) |> 
+  mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
+  ungroup() |> 
+  filter(max_depth == "Max")
+
+```
+
+
+Try using the function
+
+```{r}
+#### BIX 
+
+## BIX across all of chem
+BIX_break <- run_breakpoint_analysis(chem, "BIX")
+BIX_break$plot
+BIX_break$davies_test
+BIX_break$segmented_summary
+BIX_break$segmented_slopes
+
+
+## BIX surface
+BIX_surf_break <- run_breakpoint_analysis(chem_surf, "BIX")
+
+## BIX BOT
+BIX_bot_break <- run_breakpoint_analysis(max_depth_df, "BIX")
+
+BIX_break$plot | BIX_surf_break$plot | BIX_bot_break$plot
+
+
+#### DOC 
+
+## DOC across all of chem
+DOC_break <- run_breakpoint_analysis(chem, "DOC_mgL")
+
+## DOC surface
+DOC_surf_break <- run_breakpoint_analysis(chem_surf, "DOC_mgL")
+
+## DOC BOT
+DOC_bot_break <- run_breakpoint_analysis(max_depth_df, "DOC_mgL")
+
+##plot them all
+Breakpoints_MS <- cowplot::plot_grid(DOC_break$plot, BIX_break$plot,  
+                                     DOC_surf_break$plot,  BIX_surf_break$plot, 
+                                     DOC_bot_break$plot, BIX_bot_break$plot,
+                                     labels = c("a", "b", "c", "d", "e", "f"), ncol = 2)
+
+Breakpoints_MS
+
+ggsave("../Figures/DOM_breakpoints_MS.png", Breakpoints_MS, height = 7, width = 7, units = "in")
+
+
+
+#### SI breakpoints across all depths
+AT_break <- run_breakpoint_analysis(chem, "A_T")
+SUVA_break <- run_breakpoint_analysis(chem, "SUVA254")
+HIX_break <- run_breakpoint_analysis(chem, "HIX")
+NO3_break <- run_breakpoint_analysis(chem, "NO3NO2_ugL")
+
+Breakpoints_SI <- cowplot::plot_grid(AT_break$plot, SUVA_break$plot, HIX_break$plot,  NO3_break$plot, 
+                                     labels = c("a", "b", "c", "d"), ncol = 1)
+
+Breakpoints_SI
+
+ggsave("../Figures/DOM_NO3_breakpoints_SI.png", Breakpoints_SI, height = 9, width = 7, units = "in")
+
+
+
+
+```
+
+
+
+
+
+
+
+THIS is the cleaned up workflow that went into the function above 
+
+```{r}
+
+
+chem$Distance <- round(chem$Distance, 0) #get rid of decimals in distance
+#fit normal linear regression 
+my.lm <- lm(DOC_mgL ~ Distance, data = chem)
+davies <- davies.test(my.lm, k=10)
+#Run breakpoint
+my.seg <- segmented(my.lm,  seg.Z = ~ Distance,  psi = 2 )
+
+# Make a data frame with continuous distance values to fit segmented models to
+dist_gradient <- data.frame(Distance = seq(0, 1528, by = 1))
+# Predict from segmented model to continuous distnace
+dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
+
+#get breakpoint lines
+my.lines <- my.seg$psi[ , 2]
+my.lines.SE <- my.seg$psi[ , 3]
+
+#### plot with  color 
+DOC_breakpoint <- chem |> 
+  ggplot(aes(x = Distance, y = DOC_mgL, fill = Depth_m))+
+   geom_rect(aes(xmin = (my.lines - my.lines.SE), xmax = (my.lines + my.lines.SE), ymin = -Inf, ymax = Inf), 
+            alpha = 0.1, fill = "gray", color = NA )+ ## add breakpoint line SE
+  geom_point(shape = 21, size = 4) + 
+  #  geom_jitter(shape = 21, size = 4, width = 10, height = 0)+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18), panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)", y = "DOC (mg/L)", fill = "Depth (m)")+
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
+   scale_fill_gradient2(low = "red",  high ="blue", midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
+  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) + ##add breakpoint line
+  geom_line(data = dist_gradient, aes(x = Distance, y = fit), size = 1, inherit.aes = FALSE ) ## add breakpoint slopes
+
+DOC_breakpoint
+
+
+```
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
