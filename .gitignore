@@ -5,3 +5,7 @@
 Carvins_Carbon.Rproj
 Data/
 Figures/
+Map_Resources/GEE
+Map_Resources/Planet
+Map_Resources/*.csv
+
