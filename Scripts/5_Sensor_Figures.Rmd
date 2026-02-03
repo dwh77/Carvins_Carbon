@@ -108,11 +108,11 @@ b1_c1_tempprofiles
 # ggsave("../Figures/TempProfiles_B1-C1.png", b1_c1_tempprofiles, width = 5, height = 5, units = "in")
 
 #get temp differences to determine startificaiton here
-sensors |> 
-  filter(!Site %in% c(100, 101)) |> 
-  select(Site, Site_code, Date, Depth_m, Temp_C) |> 
-  group_by(Site_code, Date) |> 
-  mutate(Strat_diff = max(Temp))
+# sensors |> 
+#   filter(!Site %in% c(100, 101)) |> 
+#   select(Site, Site_code, Date, Depth_m, Temp_C) |> 
+#   group_by(Site_code, Date) |> 
+#   mutate(Strat_diff = max(Temp))
   
 
 
@@ -148,7 +148,7 @@ cond_S1_C1 <- sensors |>
   theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "Sp. Cond (uS/cm)")+ # can use \n to break the text
+       y = "Depth (m)", fill = "SC (uS/cm)")+ # can use \n to break the text
  scale_fill_distiller(palette = "Spectral", direction = -1)
 
 cond_S1_C1
@@ -198,7 +198,7 @@ do_S1_C1 <- sensors |>
   theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "DO \n (% sat)")+
+       y = "Depth (m)", fill = "DO (% sat)")+
   scale_x_continuous(breaks = c(0, 150, 300)) +
 scale_fill_distiller(palette = "Spectral", direction = -1)
 
@@ -208,11 +208,11 @@ do_S1_C1
 #### Stack toghether
 # sensors_S1_C1 <- cond_S1_C1 / temp_S1_C1 / do_S1_C1
 
-sensors_S1_C1 <- cowplot::plot_grid(cond_S1_C1, temp_S1_C1, do_S1_C1, labels = c("a", "b", "c"), ncol = 1)
+sensors_S1_C1 <- cowplot::plot_grid(temp_S1_C1, cond_S1_C1, do_S1_C1, labels = c("a", "b", "c"), ncol = 1)
 
 sensors_S1_C1
 
-#ggsave("MS_draft_figures/SpCond_S1-C1.png", cond_S1_C1, width = 9.5, height = 5.5, units = "in")
+ggsave("../Figures/sensors_S1_C1_fig.png", sensors_S1_C1, width = 11, height = 8, units = "in")
 
 
 ```
@@ -238,7 +238,7 @@ SpCond_fig <- sensors |>
   scale_y_reverse()+
   theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", y = "Depth (m)", color = "Sp. Cond (uS/cm)")+
+  labs(x= "Distance from Stream (m)", y = "Depth (m)", color = "SC (uS/cm)")+
   scale_x_continuous(breaks = c(0, 600, 1200)) +
   scale_color_distiller(palette = "Spectral", direction = -1, breaks = c(25,75,125))
 
@@ -290,10 +290,10 @@ DO_fig
 library(patchwork)
 # sensors_S1_P2 <- Temp_fig / DO_fig / SpCond_fig
 
-sensors_S1_P2 <- cowplot::plot_grid(SpCond_fig, Temp_fig, DO_fig, labels = c("a", "b", "c"), ncol = 1)
+sensors_S1_P2 <- cowplot::plot_grid(Temp_fig, SpCond_fig, DO_fig, labels = c("a", "b", "c"), ncol = 1)
 
 sensors_S1_P2
-# ggsave("../Figures/sensors_S1_P2_SI_fig.png", sensors_S1_P2, width = 11, height = 8, units = "in")
+ ggsave("../Figures/sensors_S1_P2_SI_fig.png", sensors_S1_P2, width = 11, height = 8, units = "in")
 
 
 
