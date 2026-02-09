@@ -1,0 +1,283 @@
+---
+title: "Misc_Data_Explore"
+output: html_document
+date: "2026-02-09"
+---
+
+## load packages 
+```{r}
+## packages 
+library(tidyverse)
+library(patchwork) # so you can arragne figures by "/" or "|"
+
+```
+
+define sampling dates
+
+```{r}
+sampling_dates <- c(ymd("2024-05-22"), ymd("2024-06-19"), ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
+                    ymd("2024-09-30"), ymd("2024-10-28"), ymd("2024-12-17"), ymd("2025-02-26"), ymd("2025-04-16"))
+
+levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
+               "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
+
+```
+
+
+## Look at chla data
+get data
+```{r}
+#EDI
+chla_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/555/6/3e40495b2e8150ae068cb5a2d00714cd")
+
+##ccr chla
+chla_ccr1 <- chla_edi |> 
+  filter(Reservoir == "CCR") |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date %in% sampling_dates) 
+#take a look at the flags in this DF, mostly jsut a lot are below detection
+
+chla_ccr <- chla_ccr1 |> 
+  group_by(Reservoir, Site, Date, Depth_m) |> 
+  summarise(across(c(Chla_ugL, Pheo_ugL), mean, na.rm = TRUE))
+
+#chem to bind to 
+chem <- read_csv("../Data/chemistry_joined.csv") 
+
+
+## add chla to chem
+chla_chem <- full_join(chem, chla_ccr, by = c("Reservoir", "Site", "Date", "Depth_m"))
+
+```
+
+Plot chla data
+
+```{r}
+levels_chla <- c("Chla_ugL", "Pheo_ugL")
+
+#Chla and pheo across all dates
+chla_chem |> 
+  pivot_longer(-c(1:8)) |> 
+  # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
+  filter(name %in% levels_chla) |> 
+  ggplot(aes(x = Distance, y = value))+
+   geom_point(size = 3) +
+  geom_smooth()+
+  facet_wrap(~factor(name, levels = levels_chla), scales = "free_y")+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)", fill = "Depth (m)")+
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500))
+
+
+## by date
+chla_chem |> 
+  mutate(Date1 = format(Date, "%d %b")) |> 
+  ggplot(aes(x = Distance, y = Chla_ugL))+
+  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
+            alpha = 0.1, fill = "gray", color = NA )+ #color gets rid of border
+  geom_point(size = 3) + 
+  facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 2)+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 14),
+                    axis.text.x = element_text(angle = 45, hjust = 1), #can make angle = 45 and hjust = 1 to shift x label
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)")+
+  scale_x_continuous(breaks = c(0, 600, 1200))
+
+
+
+```
+
+
+
+
+
+##Look at secchi
+
+```{r}
+#get EDI data
+secchi_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/198/14/547f9a388a26711b4b10e4c7ad7e1a4e")
+
+#get ccr data
+ccr_secchi <- secchi_edi |> 
+  filter(Reservoir == "CCR")
+
+```
+
+plots
+
+```{r}
+#all ccr secchi
+ccr_secchi |> 
+  ggplot(aes(x = DateTime, y = Secchi_m))+
+  geom_point()+
+  facet_wrap(~Site)
+
+#by year
+ccr_secchi |> 
+  mutate(Year = year(DateTime),
+         julianday = yday(DateTime)) |> 
+  ggplot(aes(x = julianday, y = Secchi_m))+
+  geom_point()+
+  facet_wrap(~Year)
+
+
+## secchi during sampling
+ccr_secchi |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date %in% sampling_dates) |> 
+  ggplot(aes(x = Date, y = Secchi_m))+
+  geom_point()
+
+```
+
+
+## Look at MSN YSI casts
+convective mixing exploration
+
+```{r}
+#EDI
+ysi_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/198/14/514d382eccf21428985abbd40e1d7d50")
+
+#MSN ysi
+ysi_msn <- ysi_edi |> 
+  filter(Reservoir == "CCR",
+         as.Date(DateTime) > ymd("2024-07-29"),
+         as.Date(DateTime) < ymd("2024-08-02")) |> 
+  #define sampling times
+  mutate(Date = as.Date(DateTime),
+         Time = format(DateTime,"%H:%M:%S"),
+         Hour = hour(DateTime)) |> 
+  #format hours to meaningful groups
+  mutate(Hour_cat = ifelse(Hour %in% c(23,0), "Midnight", NA),
+         Hour_cat = ifelse(Hour %in% c(12,13), "Noon", Hour_cat),
+         Hour_cat = ifelse(Hour %in% c(20,21), "9pm", Hour_cat),
+         Hour_cat = ifelse(Hour %in% c(6), "6am", Hour_cat)
+         ) |> 
+  #make a date and time for headers 
+  mutate(Date1 = format(Date, "%d %b"),
+         Date_Hour = paste(Hour_cat, Date1, sep = " ")) |> 
+  #clean up midnight sampling name for 23:58 sampling time 
+  mutate(Date_Hour = ifelse(Date_Hour == "Midnight 31 Jul", "Midnight 01 Aug", Date_Hour))
+
+```
+
+
+Temp plots
+
+```{r}
+levels_msn <- c("Noon 31 Jul", "9pm 31 Jul", "Midnight 01 Aug", "6am 01 Aug", "Noon 01 Aug")
+
+#both sites
+ysi_msn |> 
+  filter(Site != 88) |> 
+  ggplot(aes(x = Temp_C, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  #facet_grid(factor(Date_Hour, levels = levels_msn)~Site, scales = "free_y")+
+  facet_grid(Site~factor(Date_Hour, levels = levels_msn), scales = "free_y")+
+  theme_bw()
+
+#site 90
+temp_C2 <- ysi_msn |> 
+  filter(Site == 90) |> 
+  ggplot(aes(x = Temp_C, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  facet_wrap(~factor(Date_Hour, levels = levels_msn), scales = "free_y", ncol = 1)+
+  labs(title = "C2", x = "Temp (C)", y = "Depth_m")+
+  theme_bw()
+
+temp_C1 <- ysi_msn |> 
+  filter(Site == 92) |> 
+  ggplot(aes(x = Temp_C, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  facet_wrap(~factor(Date_Hour, levels = levels_msn), scales = "free_y", ncol = 1)+
+  labs(title = "C1", x = "Temp (C)", y = "Depth_m")+
+  theme_bw()
+
+
+temp_C1 | temp_C2
+
+
+
+#### Try a heatmap
+
+ysi_msn |> 
+  filter(Site == 90) |> 
+  ggplot(aes(x = factor(Date_Hour, levels = levels_msn), y = Depth_m, fill = Temp_C))+
+  geom_tile()+
+  scale_y_reverse()+
+  scale_fill_viridis_c()+
+  labs(title = "C2")+
+  theme_bw()
+
+
+ysi_msn |> 
+  filter(Site == 90) |> 
+  ggplot(aes(x = DateTime, y = Depth_m, fill = Temp_C))+
+  geom_tile()+
+  scale_y_reverse()+
+  scale_fill_viridis_c()+
+  labs(title = "C2")+
+  theme_bw()
+
+
+ysi_msn |> 
+  filter(Site == 92) |> 
+  ggplot(aes(x = DateTime, y = Depth_m, fill = Temp_C))+
+  #ggplot(aes(x = factor(Date_Hour, levels = levels_msn), y = Depth_m, fill = Temp_C))+
+  geom_tile()+
+  scale_y_reverse()+
+  scale_fill_viridis_c()+
+  labs(title = "C1")+
+  theme_bw()
+
+
+```
+
+
+DO and Cond plots
+
+```{r}
+##DO per sat
+ysi_msn |> 
+  filter(Site != 88) |> 
+  ggplot(aes(x = DOsat_percent, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  facet_grid(Site~factor(Date_Hour, levels = levels_msn), scales = "free_y")+
+  theme_bw()
+
+
+##DO mgL
+ysi_msn |> 
+  filter(Site != 88) |> 
+  ggplot(aes(x = DO_mgL, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  facet_grid(Site~factor(Date_Hour, levels = levels_msn), scales = "free_y")+
+  theme_bw()
+
+
+##Cond
+ysi_msn |> 
+  filter(Site != 88) |> 
+  ggplot(aes(x = SpCond_uScm, y = Depth_m))+
+  geom_point()+
+  geom_line(orientation = "y")+
+  scale_y_reverse()+
+  facet_grid(Site~factor(Date_Hour, levels = levels_msn), scales = "free_y")+
+  theme_bw()
+
+
+```
+
+
+
