@@ -13,11 +13,11 @@ library(tidyverse)
 library(patchwork) # so you can arragne figures by "/" or "|"
 
 ## read in chem data
-chem <- read_csv("../Data/chemistry_joined.csv")  |> 
-    filter(!(Site == 88 & Depth_m == 1.5)) |> 
-    filter(!(Site == 88 & Depth_m == 9)) |> 
-    filter(!(Site == 50 & Depth_m == 1.5)) |> 
-    filter(!(Site == 50 & Depth_m == 9))
+chem <- read_csv("../Data/chemistry_joined.csv")   
+    # filter(!(Site == 88 & Depth_m == 1.5)) |> 
+    # filter(!(Site == 88 & Depth_m == 9)) |> 
+    # filter(!(Site == 50 & Depth_m == 1.5)) |> 
+    # filter(!(Site == 50 & Depth_m == 9))
 
 ```
 
@@ -156,6 +156,7 @@ shapiro.test(chem$DOC_mgL)
 ggdensity(chem$d2H_VSMOW, xlab = "dH2", main = "Density plot of dH2 in CCR")
 shapiro.test(chem$d2H_VSMOW) 
 
+
 ```
 
 
@@ -222,7 +223,7 @@ make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type", le
   
   return(p)
 }
-
+ 
 
 #### Run function 
 response_vars <- c(
@@ -288,7 +289,8 @@ DOC
 ```{r}
 
 chem_kruskal |> 
-  dplyr::select(Site_Type, DOC_mgL, HIX, BIX, NO3NO2_ugL, D_excess) |> 
+  # dplyr::select(Site_Type, DOC_mgL, HIX, BIX, NO3NO2_ugL, D_excess) |> 
+  dplyr::select(Site_Type, NO3NO2_ugL) |> 
   group_by(Site_Type) %>%
   summarise(across(
     .cols = where(is.numeric),
@@ -734,19 +736,12 @@ run_breakpoint_analysis <- function(df, response_var, depth_var = "Depth_m") {
       alpha = 0.1, fill = "gray", color = NA
     ) +
     geom_point(shape = 21, size = 4) +
-    theme_bw() +
-    theme(
-      legend.position = "top",
-      text = element_text(size = 14),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank()
-    ) +
     labs(
       x = "Distance from Stream (m)",
       y = paste0(response_var),
       fill = "Depth (m)"
     ) +
-    scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
+        scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
     scale_fill_gradient2(
       low = "red", high = "blue", midpoint = 6, #could do median(df[[depth_var]], na.rm = TRUE)
       guide = "colourbar"
@@ -757,7 +752,27 @@ run_breakpoint_analysis <- function(df, response_var, depth_var = "Depth_m") {
       aes(x = Distance, y = fit),
       size = 1,
       inherit.aes = FALSE
+    )+
+    ##add labels for site type starting
+     annotate("text",
+           x = c(0, 189, 336, 1013),
+           y = Inf,
+           label = c("S1", "B1", "C1", "P1"),
+           vjust = -0.5,     # pushes labels above the plotting area
+           size = 5) +
+  coord_cartesian(clip = "off") +   # allow drawing outside panel
+  theme_bw() +
+  theme(
+    plot.margin = margin(20, 20, 20, 20),  # extra room above
+      legend.position = "top",
+      text = element_text(size = 14),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+        legend.background = element_blank(),
+    legend.box.background = element_blank()
+
     )
+ 
   
   # Return everything as a list
   list(
