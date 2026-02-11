@@ -600,7 +600,6 @@ run_breakpoint_analysis <- function(df, response_var, depth_var = "Depth_m") {
   coord_cartesian(clip = "off") +   # allow drawing outside panel
   theme_bw() +
   theme(
-    plot.margin = margin(20, 20, 20, 20),  # extra room above
       legend.position = "top",
       text = element_text(size = 14),
       panel.grid.major = element_blank(),
@@ -714,7 +713,7 @@ Breakpoints_MS <- cowplot::plot_grid(DOC_break$plot, BIX_break$plot,
 
 Breakpoints_MS
 
-# ggsave("../Figures/DOM_breakpoints_MS.png", Breakpoints_MS, height = 8, width = 8, units = "in")
+#ggsave("../Figures/DOM_breakpoints_MS.png", Breakpoints_MS, height = 8, width = 8, units = "in")
 
 
 ```
@@ -757,7 +756,7 @@ Breakpoints_SI <- cowplot::plot_grid(AT_break$plot, SUVA_break$plot, HIX_break$p
 
 Breakpoints_SI
 
-# ggsave("../Figures/DOM_NO3_breakpoints_SI.png", Breakpoints_SI, height = 9, width = 7, units = "in")
+ggsave("../Figures/DOM_NO3_breakpoints_SI.png", Breakpoints_SI, height = 9, width = 7, units = "in")
 
 ```
 
@@ -785,18 +784,27 @@ chla_break_surf$segmented_summary
 chla_break_surf$segmented_slopes
 
 
+##NO3 surface
+no3_break_surf <- run_breakpoint_analysis(chem_surf, response_var = "NO3NO2_ugL")
+
+no3_break_surf$plot
+no3_break_surf$davies_test
+no3_break_surf$segmented_summary
+no3_break_surf$segmented_slopes
+
+
 ```
 
 chla breakplot
 
 ```{r}
-chla_break_plots <- cowplot::plot_grid(NO3_break$plot, chla_break_surf$plot, 
-                                       DOC_break$plot,  BIX_break$plot, 
+chla_break_plots <- cowplot::plot_grid(no3_break_surf$plot, chla_break_surf$plot, 
+                                       DOC_surf_break$plot,  BIX_surf_break$plot, 
                                      labels = c("a", "b", "c", "d"), ncol = 1)
 
 chla_break_plots
 
-# ggsave("../Figures/Chla_breakpoints_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
+#ggsave("../Figures/Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
 
 ```
 
