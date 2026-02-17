@@ -640,6 +640,24 @@ max_depth_df <- chem |>
 
 ```
 
+BIX z-score test 
+
+```{r}
+
+chem_z <- chem |> 
+  mutate(BIX_zt = scale(BIX))
+
+
+bix_zt_break <- run_breakpoint_analysis(chem_z, "BIX_zt")
+bix_zt_break$plot
+bix_zt_break$davies_test
+bix_zt_break$segmented_summary
+bix_zt_break$segmented_slopes
+
+
+
+```
+
 
 BIX breakpoints: all depths, surface, bottom
 To interpret stats outputs its easier to run chunk line by line
