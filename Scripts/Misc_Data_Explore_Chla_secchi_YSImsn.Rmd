@@ -290,5 +290,76 @@ ysi_msn |>
 
 ```
 
+## Flowmate
+
+```{r}
+flowmate_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/454/9/0e7fe16623a1ad2a67774c23ce8a29d8")
+
+hpb_flowmate <- flowmate_edi |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date %in% sampling_dates)
+
+```
+
+plot
+```{r}
+hpb_flowmate |> 
+  ggplot(aes(x = Date, y = Flow_cms))+
+  geom_point()+
+  geom_line()
+
+
+```
+
+Hf Q
+
+```{r}
+hpb_stage_STAGED <- read_csv("https://pasta-s.lternet.edu/package/data/eml/edi/1781/2/630f42ffb3560c3a6afd592511756c1e")
+
+```
+
+daily hf q
+
+```{r}
+daily_q <- hpb_stage_STAGED |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  group_by(Date) |> 
+  summarise(Q_daily_cms = mean(Flow_cms, na.rm = T))
+  
+```
+
+
+plots
+```{r}
+daily_q |> 
+  ggplot(aes(x= Date, y = Q_daily_cms ))+
+  geom_point()
+
+
+full_join(daily_q, hpb_flowmate, by = "Date") |> 
+  filter(Date > ymd("2024-04-30"),
+         Date < ymd("2025-05-01")) |> 
+  ggplot(aes(x = Date))+
+  geom_point(aes( y = Q_daily_cms))+
+  geom_point(aes(y = Flow_cms), size = 4, color = "red")+
+  scale_y_log10()+
+  theme_bw()
+
+```
+
+
+Stream temp from MSN
+
+```{r}
+hpb_stage_STAGED |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date >= ymd("2024-07-31"),
+         Date <= ymd("2024-08-01")) |> 
+  ggplot(aes(x= DateTime, y = Temp_C))+
+  geom_point()
+
+
+```
+
 
 
