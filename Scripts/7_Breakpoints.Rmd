@@ -1,0 +1,574 @@
+---
+title: "Breakpoints"
+output: html_document
+date: "2025-07-21"
+---
+
+## load packages and read in data
+
+```{r}
+## packages 
+library(ggpubr) # for ggdensity
+library(segmented) #for breakpoints
+library(tidyverse)
+library(patchwork) # so you can arrange figures by "/" or "|"
+
+## read in chem data
+chem <- read_csv("../Data/chemistry_joined.csv")   
+
+## read in chl-a data
+ccr_chla <- read.csv("../Data/CCR_chla.csv") |> 
+  mutate(Date = as.Date(Date))
+
+chem_chla <- full_join(chem, ccr_chla, by = c("Reservoir", "Site", "Date", "Depth_m")) |> 
+  select(-Pheo_ugL)
+
+
+##read in sensors and align to rows 
+sensors <- read_csv("../Data/sensors_joined.csv") |> 
+  select(-c(Site_code, Dry_start, Dry_end, Distance))
+
+chem_sensors <- chem_chla %>%
+  left_join(
+    sensors,
+    by = c("Reservoir", "Site", "Date"),
+    suffix = c("_chem", "_sens")
+  ) %>%
+  mutate(depth_diff = abs(Depth_m_chem - Depth_m_sens)) %>%
+  group_by(Reservoir, Site, Date, Distance, Depth_m_chem) %>%
+  slice_min(depth_diff, n = 1, with_ties = FALSE) %>%
+  ungroup() |> 
+  rename(Depth_m = Depth_m_chem) |> #set name back for function to work
+  #get rid of sensor values for site P2 cast on 19 June that didn't reach the bottom (difference in depth was 7.5 meters)
+  mutate(SpCond_uScm = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, SpCond_uScm),
+         Temp_C = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, Temp_C),
+         DO_mgL = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, DO_mgL),
+         DOsat_percent = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, DOsat_percent)
+         ) 
+
+
+```
+
+
+## singular breakpoint
+
+```{r}
+### BIX as an example
+
+#fit normal linear regression 
+my.lm <- lm(BIX ~ Distance, data = chem)
+summary(my.lm)
+davies <- davies.test(my.lm, k=10)
+davies
+
+#Run breakpoint
+my.seg <- segmented(my.lm,  seg.Z = ~ Distance,  psi = 2 )
+summary(my.seg)
+my.seg$psi
+slope(my.seg)
+
+#fit breakpoint segments to distance data
+my.fitted <- fitted(my.seg)
+my.model <- data.frame(Distance = chem$Distance, BIX_fit = my.fitted)
+
+#get breakpoint lines
+#NOTE that this line comes up chopy because its fitting to x axis values that aren't continous (have gaps between c and P sites; fixed later below)
+my.lines <- my.seg$psi[ , 2]
+
+#plot
+chem |> 
+  ggplot(aes(x = Distance, y = BIX, fill = Depth_m))+
+  geom_point(shape = 21, size = 4) + #shape = 21,
+  # geom_smooth()+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)", y = "BIX", fill = "Depth (m)",
+       shape = "Site Type")+
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
+  scale_fill_gradient2(low = "red",  high ="blue",
+                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))+
+  #geom_smooth()+
+  geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+  geom_line(data = my.model, aes(x = Distance, y = BIX_fit), size = 1, inherit.aes = FALSE ) 
+
+
+
+## get the quick stats by running on variables breakpoint
+# #BIX
+# my.lm <- lm(BIX ~ Distance, data = chem)
+# davies <- davies.test(my.lm, k=10)
+# davies
+# my.seg <- segmented(my.lm,  seg.Z = ~ Distance,  psi = 2 )
+# summary(my.seg)
+# my.seg$psi
+# slope(my.seg)
+
+
+```
+
+
+## Breakpoint function for MS figures
+
+```{r}
+library(tidyverse)
+library(segmented)
+library(rlang)
+
+run_breakpoint_analysis <- function(df, response_var, 
+                                    fill_var = NULL, #Variable fill, could also set to "Depth_m"
+                                    fill_var_label = NULL #label to assign for color ramp 
+                                    ) {
+  
+  # Convert response variable to symbol
+  y <- sym(response_var)
+  
+  # Fit linear model
+  my.lm <- lm(as.formula(paste(response_var, "~ Distance")), data = df)
+  
+  # Davies test
+  davies <- davies.test(my.lm, k = 10)
+  
+  # Segmented model
+  my.seg <- segmented(my.lm, seg.Z = ~ Distance, psi = 2)
+  
+  # Make regression lines; making a continuous distance gradient by 1 meter interval so lines don't jump like above
+  dist_gradient <- data.frame(Distance = seq(0, max(df$Distance, na.rm = TRUE), by = 1))
+  dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
+  
+  # Breakpoint + SE
+  my.lines <- my.seg$psi[, 2]
+  my.lines.SE <- my.seg$psi[, 3]
+  
+  # Build plot
+  p <- df |>
+    ggplot(aes(x = Distance, y = !!y, fill = .data[[fill_var]])) +
+    geom_rect(
+      aes(
+        xmin = (my.lines - my.lines.SE),
+        xmax = (my.lines + my.lines.SE),
+        ymin = -Inf, ymax = Inf
+      ),
+      alpha = 0.1, fill = "gray", color = NA
+    ) +
+    geom_point(shape = 21, size = 4) +
+    labs(
+      x = "Distance from Stream (m)",
+      y = paste0(response_var),
+      fill = fill_var_label
+    ) +
+        scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
+    ##For other variable color ramping 
+    scale_fill_distiller(palette = "Spectral", direction = -1)+
+    ##For Depth only plots
+    # scale_fill_gradient2(
+    #   low = "red", high = "blue", midpoint = 6, #could do median(df[[fill_var]], na.rm = TRUE)
+    #   guide = "colourbar"
+    # ) +
+    geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+    geom_line(
+      data = dist_gradient,
+      aes(x = Distance, y = fit),
+      size = 1,
+      inherit.aes = FALSE
+    )+
+    ##add labels for site type starting
+     annotate("text",
+           x = c(0, 189, 336, 1013),
+           y = Inf,
+           label = c("S1", "B1", "C1", "P1"),
+           vjust = -0.5,     # pushes labels above the plotting area
+           size = 5) +
+  coord_cartesian(clip = "off") +   # allow drawing outside panel
+  theme_bw() +
+  theme(
+      legend.position = "top",
+      text = element_text(size = 14),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+        legend.background = element_blank(),
+    legend.box.background = element_blank()
+    )
+ 
+  # Return everything as a list
+  list(
+    plot = p,
+    segmented_summary = summary(my.seg),
+    segmented_slopes = slope(my.seg),
+    davies_test = davies
+  )
+} #end of function
+
+
+```
+
+
+## Breakpoints for stream-res boundary 
+Temp, SpCond, d-excess
+
+```{r}
+## Temp
+temp_break <- run_breakpoint_analysis(chem_sensors, response_var = "Temp_C",
+                                      fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+temp_break$plot
+temp_break$davies_test
+
+## Cond
+SC_break <- run_breakpoint_analysis(chem_sensors, response_var = "SpCond_uScm",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_break$plot
+SC_break$davies_test
+
+## DO
+DO_break <- run_breakpoint_analysis(chem_sensors, response_var = "DOsat_percent",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+DO_break$plot
+DO_break$davies_test
+
+
+## d-excess
+Dexcess_break <- run_breakpoint_analysis(chem_sensors, response_var = "D_excess",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+Dexcess_break$plot
+Dexcess_break$davies_test
+
+
+## stack Sp cond and d-excess
+Dexcess_break$plot / SC_break$plot
+
+
+
+```
+
+
+Check if this changes by days with dry streams or days with plunge points
+
+Set up filtering for day groups 
+```{r}
+### dry stream vs connected days 
+dry_stream_days <- c(ymd("2024-06-19"), ymd("2024-07-11"), ymd("2024-08-14"), 
+                ymd("2024-09-16"), ymd("2024-10-28") )
+
+wet_stream_days <- c(ymd("2024-05-22"), ymd("2024-09-30"), ymd("2024-12-17"), 
+                ymd("2025-02-26"), ymd("2025-04-16"))
+
+### plunge v no plunge groups 
+plungedays <- c(ymd("2024-05-22"), ymd("2024-06-19"), ymd("2025-02-26"), ymd("2025-04-16"))
+
+nonplungedays <- c(ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
+                    ymd("2024-09-30"),  ymd("2024-10-28"), ymd("2024-12-17"))
+
+
+```
+
+
+Plunge vs No plunge BP's
+```{r}
+## SC
+plungedays_df <- chem_sensors |> 
+  filter(Date %in% plungedays)
+
+SC_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "SpCond_uScm",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_break_plunge$davies_test
+
+
+noplungedays_df <- chem_sensors |> 
+  filter(Date %in% nonplungedays)
+
+SC_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "SpCond_uScm",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_break_plungeno$davies_test
+
+SC_break_plunge$plot / SC_break_plungeno$plot
+
+
+##D-excess
+Dexcess_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "D_excess",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+Dexcess_break_plunge$davies_test
+
+
+Dexcess_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "D_excess",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+Dexcess_break_plungeno$davies_test
+
+Dexcess_break_plungeno$plot / Dexcess_break_plungeno$plot
+
+
+```
+
+Dry vs Wet  BP's
+```{r}
+## SC
+drystream_df <- chem_sensors |> 
+  filter(Date %in% dry_stream_days)
+
+SC_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "SpCond_uScm",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_break_dry$davies_test
+
+
+wetstream_df <- chem_sensors |> 
+  filter(Date %in% wet_stream_days)
+
+SC_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "SpCond_uScm",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_break_wet$davies_test
+
+SC_break_dry$plot / SC_break_wet$plot
+
+
+##D-excess
+D_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "D_excess",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+D_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "D_excess",
+                                    fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+D_break_dry$plot / D_break_wet$plot
+
+
+
+```
+
+
+
+#### DOM Breakpoints for MS
+
+set up surface and max depth DFs
+
+```{r}
+##make surface only data frame
+chem_surf <- chem_sensors |> 
+  filter(Depth_m == 0.1)
+
+##make max depth only data frame
+max_depth_df <- chem_sensors |> 
+  group_by(Site, Date) |> 
+  mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
+  ungroup() |> 
+  filter(max_depth == "Max")
+
+```
+
+BIX z-score test 
+
+```{r}
+
+chem_z <- chem_sensors |> 
+  mutate(BIX_zt = scale(BIX))
+
+
+bix_zt_break <- run_breakpoint_analysis(chem_z, response_var = "BIX_zt", 
+                                        fill_var = "D_excess", fill_var_label = "d-excess")
+bix_zt_break$plot
+bix_zt_break$davies_test
+bix_zt_break$segmented_summary
+bix_zt_break$segmented_slopes
+
+
+
+```
+
+## BIX to lots of responses for fill
+
+```{r}
+
+```
+
+
+
+
+
+
+
+## Breakpoints from MS from early feb 2026
+BIX breakpoints: all depths, surface, bottom
+To interpret stats outputs its easier to run chunk line by line
+```{r}
+#### BIX 
+
+## BIX across all of chem
+BIX_break <- run_breakpoint_analysis(chem, "BIX")
+#see plot
+BIX_break$plot
+#get stats for MS table
+BIX_break$davies_test
+BIX_break$segmented_summary
+BIX_break$segmented_slopes
+
+
+## BIX surface
+BIX_surf_break <- run_breakpoint_analysis(chem_surf, "BIX")
+BIX_surf_break$davies_test
+BIX_surf_break$segmented_summary
+BIX_surf_break$segmented_slopes
+
+## BIX BOT
+BIX_bot_break <- run_breakpoint_analysis(max_depth_df, "BIX")
+BIX_bot_break$davies_test
+BIX_bot_break$segmented_summary
+BIX_bot_break$segmented_slopes
+
+
+#plot breakpoints
+BIX_break$plot | BIX_surf_break$plot | BIX_bot_break$plot
+
+
+```
+
+
+DOC breakpoints: all depths, surface, bottom 
+
+```{r}
+#### DOC 
+
+## DOC across all of chem
+DOC_break <- run_breakpoint_analysis(chem, "DOC_mgL")
+DOC_break$davies_test
+DOC_break$segmented_summary
+DOC_break$segmented_slopes
+
+## DOC surface
+DOC_surf_break <- run_breakpoint_analysis(chem_surf, "DOC_mgL")
+DOC_surf_break$davies_test
+DOC_surf_break$segmented_summary
+DOC_surf_break$segmented_slopes
+
+## DOC BOT
+DOC_bot_break <- run_breakpoint_analysis(max_depth_df, "DOC_mgL")
+DOC_bot_break$davies_test
+DOC_bot_break$segmented_summary
+DOC_bot_break$segmented_slopes
+
+
+```
+
+DOC / BIX figure for MS 
+
+```{r}
+##plot them all
+Breakpoints_MS <- cowplot::plot_grid(DOC_break$plot, BIX_break$plot,  
+                                     DOC_surf_break$plot,  BIX_surf_break$plot, 
+                                     DOC_bot_break$plot, BIX_bot_break$plot,
+                                     labels = c("a", "b", "c", "d", "e", "f"), ncol = 2)
+
+Breakpoints_MS
+
+#ggsave("../Figures/DOM_breakpoints_MS.png", Breakpoints_MS, height = 8, width = 8, units = "in")
+
+
+```
+
+
+
+Breakponts for SI figure
+SI breakpoints across all depths
+```{r}
+#### AT
+AT_break <- run_breakpoint_analysis(chem, "A_T")
+AT_break$davies_test
+AT_break$segmented_summary
+AT_break$segmented_slopes
+
+
+#### HIX
+HIX_break <- run_breakpoint_analysis(chem, "HIX")
+HIX_break$davies_test
+HIX_break$segmented_summary
+HIX_break$segmented_slopes
+
+#### SUVA
+SUVA_break <- run_breakpoint_analysis(chem, "SUVA254")
+SUVA_break$davies_test
+SUVA_break$segmented_summary
+SUVA_break$segmented_slopes
+
+
+####NO3
+NO3_break <- run_breakpoint_analysis(chem, "NO3NO2_ugL")
+NO3_break$davies_test
+NO3_break$segmented_summary
+NO3_break$segmented_slopes
+
+
+#### make figure
+Breakpoints_SI <- cowplot::plot_grid(AT_break$plot, SUVA_break$plot, HIX_break$plot,  NO3_break$plot, 
+                                     labels = c("a", "b", "c", "d"), ncol = 1)
+
+Breakpoints_SI
+
+# ggsave("../Figures/DOM_NO3_breakpoints_SI.png", Breakpoints_SI, height = 9, width = 7, units = "in")
+
+```
+
+
+## Check out adding chla breakpoint 
+
+run breakpoint 
+
+```{r}
+chla_break <- chem_sensors |> 
+  filter(!is.na(Chla_ugL))
+
+
+chla_break_surf <- run_breakpoint_analysis(chla_break, response_var = "Chla_ugL")
+
+chla_break_surf$plot
+chla_break_surf$davies_test
+chla_break_surf$segmented_summary
+chla_break_surf$segmented_slopes
+
+
+##NO3 surface
+no3_break_surf <- run_breakpoint_analysis(chem_surf, response_var = "NO3NO2_ugL")
+
+no3_break_surf$plot
+no3_break_surf$davies_test
+no3_break_surf$segmented_summary
+no3_break_surf$segmented_slopes
+
+##make figure 
+chla_break_plots <- cowplot::plot_grid(no3_break_surf$plot, chla_break_surf$plot, 
+                                       DOC_surf_break$plot,  BIX_surf_break$plot, 
+                                     labels = c("a", "b", "c", "d"), ncol = 1)
+
+chla_break_plots
+
+#ggsave("../Figures/Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
+
+
+```
+
+
+
+
+## regressions to sensors 
+
+```{r}
+zz |> 
+  mutate(Site_Type = ifelse(Site_code.x %in% c("S1", "S2"), "Stream", NA),
+         Site_Type = ifelse(Site_code.x %in% c("B1", "B2"), "Backwater", Site_Type),
+         Site_Type = ifelse(Site_code.x %in% c("C1", "C2"), "Cove", Site_Type),
+         Site_Type = ifelse(Site_code.x %in% c("P1", "P2"), "Pelagic", Site_Type)
+         ) |> 
+  ggplot(aes(x = Temp_C, y = BIX, shape = Site_Type, color = Date))+
+  geom_point()
+
+
+
+```
+
+
+
+
