@@ -105,40 +105,74 @@ hydro_daily |>
 
 
 #### Hydrology MS timeseries figure ####
+sampling_dates <- data.frame(Date = c(ymd("2024-05-22"), ymd("2024-06-19"), ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
+                    ymd("2024-09-30"), ymd("2024-10-28"), ymd("2024-12-17"), ymd("2025-02-26"), ymd("2025-04-16")))
 
-hydro_TS_fig <- hydro_daily |> 
-  select(-predicted_hpb_C, -predicted_hpb_CT) |>  # keep predicted from T, based on plot above where modeled best represents increases arround storms 
-  mutate(interp = ifelse(is.na(HPB_daily_Stage_cm), "Interp", "Observed")) |> 
-  mutate(HPB = ifelse(is.na(HPB_daily_Stage_cm), predicted_hpb_T, HPB_daily_Stage_cm )) |> 
-  select(Date, interp, Daily_rain_mm, HPB, Dam_daily_WaterLevel_m) |> 
-  rename(HPB_stage_cm = HPB,
-         CCR_WaterLevel_m = Dam_daily_WaterLevel_m) |> 
-  pivot_longer(-c(1:2)) |> 
-  mutate(interp = ifelse(name != "HPB_stage_cm", "Observed", interp )) |> #fix interp column so just affects HPB where interp happened
-    ggplot(aes(x = as.Date(Date), y = value, shape = interp))+
+
+precip_fig <- hydro_daily |> 
+  ggplot(aes(x = as.Date(Date), y = Daily_rain_mm))+
+  #shade Helene storm period
+  geom_rect(aes(xmin = ymd("2024-09-23"), xmax = ymd("2024-10-02"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
+  #shade Feb storm period
+  geom_rect(aes(xmin = ymd("2025-02-12"), xmax = ymd("2025-02-16"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
   geom_point()+
-  scale_shape_manual(values = c("Observed" = 16, "Interp" = 1), guide = "none")+
-  # scale_y_log10()+
-  geom_vline(xintercept = ymd("2024-05-22"))+  geom_vline(xintercept = ymd("2024-06-19"))+
-  geom_vline(xintercept = ymd("2024-07-11"))+  geom_vline(xintercept = ymd("2024-08-14"))+
-  geom_vline(xintercept = ymd("2024-09-16"))+  geom_vline(xintercept = ymd("2024-09-30"))+
-  geom_vline(xintercept = ymd("2024-10-28"))+  geom_vline(xintercept = ymd("2024-12-17"))+
-  geom_vline(xintercept = ymd("2025-02-26"))+  geom_vline(xintercept = ymd("2025-04-16"))+
-  facet_wrap(~factor(name, levels = c("Daily_rain_mm", "HPB_stage_cm", "CCR_WaterLevel_m")), ncol = 1, scales = "free_y")+
+  geom_point(data = sampling_dates, aes(x = Date, y = Inf), shape = 25, size = 3, fill = "black") +
   scale_x_date(breaks = "1 months", date_labels = "%b")+
-  labs(x= element_blank())+
-  theme_bw()+ theme(text = element_text(size = 18),
+  labs(x= element_blank(), y = "Daily Rain (mm)")+
+  theme_bw()+ theme(text = element_text(size = 12),
                     panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 
+
+stage_fig <- hydro_daily |> 
+  mutate(interp = ifelse(is.na(HPB_daily_Stage_cm), "Interp", "Observed")) |> 
+  mutate(HPB_stage_cm = ifelse(is.na(HPB_daily_Stage_cm), predicted_hpb_T, HPB_daily_Stage_cm )) |> # use predicted from T, based on plot above where modeled best represents increases around storms
+  ggplot(aes(x = as.Date(Date), y = HPB_stage_cm, shape = interp))+
+  #shade Helene storm period
+  geom_rect(aes(xmin = ymd("2024-09-23"), xmax = ymd("2024-10-02"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
+  #shade Feb storm period
+  geom_rect(aes(xmin = ymd("2025-02-12"), xmax = ymd("2025-02-16"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
+  geom_point()+
+  geom_point(data = sampling_dates, aes(x = Date, y = Inf), shape = 25, size = 3, fill = "black") +
+  scale_shape_manual(values = c("Observed" = 16, "Interp" = 5), guide = "none")+
+  scale_x_date(breaks = "1 months", date_labels = "%b")+
+  labs(x= element_blank(), y = "Stream Stage (cm)")+
+  theme_bw()+ theme(text = element_text(size = 12),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+waterlevel_fig <- hydro_daily |> 
+  ggplot(aes(x = as.Date(Date), y = Dam_daily_WaterLevel_m))+
+  #shade Helene storm period
+  geom_rect(aes(xmin = ymd("2024-09-23"), xmax = ymd("2024-10-02"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
+  #shade Feb storm period
+  geom_rect(aes(xmin = ymd("2025-02-12"), xmax = ymd("2025-02-16"), ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ 
+  geom_point()+
+  geom_point(data = sampling_dates, aes(x = Date, y = Inf), shape = 25, size = 3, fill = "black") +
+  scale_x_date(breaks = "1 months", date_labels = "%b")+
+  labs(x= element_blank(), y = "Reservoir Depth (m)")+
+  theme_bw()+ theme(text = element_text(size = 12),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+hydro_TS_fig <- cowplot::plot_grid(precip_fig, stage_fig, waterlevel_fig, 
+                                   labels = c("a", "b", "c"), nrow = 3)
+
 hydro_TS_fig
+# ggsave("./Figures/hydro_TS_figure_v2.png", hydro_TS_fig, width = 6, height = 7, units = "in")
 
-#plotly::ggplotly(hydro_TS_fig) #For interactive plots
+#interactive plots
+# plotly::ggplotly(waterlevel_fig) #For interactive plots
+# plotly::ggplotly(precip_fig) #For interactive plots
 
-# ggsave("./Figures/hydro_TS_figure.png", hydro_TS_fig, width = 6.5, height = 4.5, units = "in")
 
-
-## SI figure for HPB~USGS
+#### SI figure for HPB~USGS
 hpb_regress_timeseries <- hydro_daily |> 
   select(Date, HPB_daily_Stage_cm, Stage_Tinker_ft, predicted_hpb_T) |> 
   rename(HPB_GAM_modeled_cm = predicted_hpb_T) |> 
@@ -183,4 +217,11 @@ feb_rain_snow_storm <- hydro_daily |>
          Date <= ymd("2025-02-16")) 
 
 sum(feb_rain_snow_storm$Daily_rain_mm)
+
+
+##total rain through period 
+sum(hydro_daily$Daily_rain_mm)
+
+#proportion from two storms 
+(sum(helene_rain$Daily_rain_mm) + sum(feb_rain_snow_storm$Daily_rain_mm)) / sum(hydro_daily$Daily_rain_mm)
 
