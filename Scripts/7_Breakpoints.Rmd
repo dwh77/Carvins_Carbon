@@ -342,22 +342,38 @@ D_break_dry$plot / D_break_wet$plot
 ```
 
 
+## Z score values for Breakpoints
+
+```{r}
+chem_ZT <- chem_sensors |> 
+  mutate(BIX_Zscore = scale(BIX),
+         HIX_Zscore = scale(HIX),
+         SUVA254_Zscore = scale(SUVA254),
+         AT_Zscore = scale(A_T),
+         DOC_Zscore = scale(DOC_mgL),
+         NO3_Zscore = scale(NO3NO2_ugL),
+         Chla_Zscore = scale(Chla_ugL)
+         )
+
+```
+
+
 
 #### DOM Breakpoints for MS
 
 set up surface and max depth DFs
 
 ```{r}
-##make surface only data frame
-chem_surf <- chem_sensors |> 
-  filter(Depth_m == 0.1)
-
-##make max depth only data frame
-max_depth_df <- chem_sensors |> 
-  group_by(Site, Date) |> 
-  mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
-  ungroup() |> 
-  filter(max_depth == "Max")
+# ##make surface only data frame
+# chem_surf <- chem_sensors |> 
+#   filter(Depth_m == 0.1)
+# 
+# ##make max depth only data frame
+# max_depth_df <- chem_sensors |> 
+#   group_by(Site, Date) |> 
+#   mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
+#   ungroup() |> 
+#   filter(max_depth == "Max")
 
 ```
 
@@ -369,8 +385,8 @@ chem_z <- chem_sensors |>
   mutate(BIX_zt = scale(BIX))
 
 
-bix_zt_break <- run_breakpoint_analysis(chem_z, response_var = "BIX_zt", 
-                                        fill_var = "D_excess", fill_var_label = "d-excess")
+bix_zt_break <- run_breakpoint_analysis(chem_ZT, response_var = "BIX_Zscore", 
+                                        fill_var = "SpCond_uScm", fill_var_label = "d-excess")
 bix_zt_break$plot
 bix_zt_break$davies_test
 bix_zt_break$segmented_summary
