@@ -248,11 +248,18 @@ iso_rain_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df,
 
 iso_rain_surf
 
+# ggsave("../Figures/Iso_Rain_surf_MS_fig.png", iso_rain_surf, width = 6.5, height = 4, units = "in")
+
+
 
 #### Surf and BOT 
-plot_iso_ts(data = chem_df, hydro = hydro_df,
+iso_rain_surfbot <- plot_iso_ts(data = chem_df, hydro = hydro_df,
                     y_var = "D_excess",  y_label = "d-excess (\u2030)",
                     show_rain = TRUE,  depths = c("0.1","BOT"))
+
+iso_rain_surfbot
+# ggsave("./Figures/Iso_Rain_surfBOT_SI_fig.png", iso_rain_surfbot, width = 6.5, height = 5, units = "in")
+
 
 
 ```
