@@ -13,38 +13,7 @@ library(tidyverse)
 library(patchwork) # so you can arrange figures by "/" or "|"
 
 ## read in chem data
-chem <- read_csv("../Data/chemistry_joined.csv")   
-
-## read in chl-a data
-ccr_chla <- read.csv("../Data/CCR_chla.csv") |> 
-  mutate(Date = as.Date(Date))
-
-chem_chla <- full_join(chem, ccr_chla, by = c("Reservoir", "Site", "Date", "Depth_m")) |> 
-  select(-Pheo_ugL)
-
-
-##read in sensors and align to rows 
-sensors <- read_csv("../Data/sensors_joined.csv") |> 
-  select(-c(Site_code, Dry_start, Dry_end, Distance))
-
-chem_sensors <- chem_chla %>%
-  left_join(
-    sensors,
-    by = c("Reservoir", "Site", "Date"),
-    suffix = c("_chem", "_sens")
-  ) %>%
-  mutate(depth_diff = abs(Depth_m_chem - Depth_m_sens)) %>%
-  group_by(Reservoir, Site, Date, Distance, Depth_m_chem) %>%
-  slice_min(depth_diff, n = 1, with_ties = FALSE) %>%
-  ungroup() |> 
-  rename(Depth_m = Depth_m_chem) |> #set name back for function to work
-  #get rid of sensor values for site P2 cast on 19 June that didn't reach the bottom (difference in depth was 7.5 meters)
-  mutate(SpCond_uScm = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, SpCond_uScm),
-         Temp_C = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, Temp_C),
-         DO_mgL = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, DO_mgL),
-         DOsat_percent = ifelse(Date == ymd("2024-06-19") & Site_code == "P2" & Depth_m == 20, NA, DOsat_percent)
-         ) 
-
+chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")   
 
 ```
 
@@ -206,21 +175,21 @@ Temp, SpCond, d-excess
 
 ```{r}
 ## Temp
-temp_break <- run_breakpoint_analysis(chem_sensors, response_var = "Temp_C",
+temp_break <- run_breakpoint_analysis(chem, response_var = "Temp_C",
                                       fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 temp_break$plot
 temp_break$davies_test
 
 ## Cond
-SC_break <- run_breakpoint_analysis(chem_sensors, response_var = "SpCond_uScm",
+SC_break <- run_breakpoint_analysis(chem, response_var = "SpCond_uScm",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 SC_break$plot
 SC_break$davies_test
 
 ## DO
-DO_break <- run_breakpoint_analysis(chem_sensors, response_var = "DOsat_percent",
+DO_break <- run_breakpoint_analysis(chem, response_var = "DOsat_percent",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 DO_break$plot
@@ -228,7 +197,7 @@ DO_break$davies_test
 
 
 ## d-excess
-Dexcess_break <- run_breakpoint_analysis(chem_sensors, response_var = "D_excess",
+Dexcess_break <- run_breakpoint_analysis(chem, response_var = "D_excess",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 Dexcess_break$plot
@@ -267,7 +236,7 @@ nonplungedays <- c(ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
 Plunge vs No plunge BP's
 ```{r}
 ## SC
-plungedays_df <- chem_sensors |> 
+plungedays_df <- chem |> 
   filter(Date %in% plungedays)
 
 SC_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "SpCond_uScm",
@@ -276,7 +245,7 @@ SC_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "SpCond
 SC_break_plunge$davies_test
 
 
-noplungedays_df <- chem_sensors |> 
+noplungedays_df <- chem |> 
   filter(Date %in% nonplungedays)
 
 SC_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "SpCond_uScm",
@@ -307,7 +276,7 @@ Dexcess_break_plungeno$plot / Dexcess_break_plungeno$plot
 Dry vs Wet  BP's
 ```{r}
 ## SC
-drystream_df <- chem_sensors |> 
+drystream_df <- chem |> 
   filter(Date %in% dry_stream_days)
 
 SC_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "SpCond_uScm",
@@ -316,7 +285,7 @@ SC_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "SpCond_uSc
 SC_break_dry$davies_test
 
 
-wetstream_df <- chem_sensors |> 
+wetstream_df <- chem |> 
   filter(Date %in% wet_stream_days)
 
 SC_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "SpCond_uScm",
@@ -344,7 +313,7 @@ D_break_dry$plot / D_break_wet$plot
 ## Z score values for Breakpoints
 
 ```{r}
-chem_ZT <- chem_sensors |> 
+chem_ZT <- chem |> 
   mutate(BIX_Zscore = scale(BIX),
          HIX_Zscore = scale(HIX),
          SUVA254_Zscore = scale(SUVA254),
@@ -364,11 +333,11 @@ set up surface and max depth DFs
 
 ```{r}
 # ##make surface only data frame
-# chem_surf <- chem_sensors |> 
+# chem_surf <- chem |> 
 #   filter(Depth_m == 0.1)
 # 
 # ##make max depth only data frame
-# max_depth_df <- chem_sensors |> 
+# max_depth_df <- chem |> 
 #   group_by(Site, Date) |> 
 #   mutate(max_depth = if_else(Depth_m == max(Depth_m, na.rm = TRUE), "Max", "Not")) |> 
 #   ungroup() |> 
@@ -380,7 +349,7 @@ BIX z-score test
 
 ```{r}
 
-chem_z <- chem_sensors |> 
+chem_z <- chem |> 
   mutate(BIX_zt = scale(BIX))
 
 
@@ -533,7 +502,7 @@ Breakpoints_SI
 run breakpoint 
 
 ```{r}
-chla_break <- chem_sensors |> 
+chla_break <- chem |> 
   filter(!is.na(Chla_ugL))
 
 

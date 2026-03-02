@@ -15,7 +15,7 @@ hydro <- read_csv("../Data/Hydrology_Daily_Observed.csv") |>
   filter(Date >= ymd("2024-05-01"),
          Date <= ymd("2025-04-30"))
 
-chem <- read_csv("../Data/chemistry_joined.csv")
+chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")
 
 ```
 

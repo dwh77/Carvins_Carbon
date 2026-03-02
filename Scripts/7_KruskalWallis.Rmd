@@ -12,15 +12,7 @@ library(tidyverse)
 library(patchwork) # so you can arrange figures by "/" or "|"
 
 ## read in chem data
-chem <- read_csv("../Data/chemistry_joined.csv")   
-
-## read in chl-a data
-ccr_chla <- read.csv("../Data/CCR_chla.csv") |> 
-  mutate(Date = as.Date(Date))
-
-chem_chla <- full_join(chem, ccr_chla, by = c("Reservoir", "Site", "Date", "Depth_m")) |> 
-  select(-Pheo_ugL)
-
+chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")   
 
 ```
 
@@ -38,7 +30,7 @@ levels <- c("DOC_mgL", "DON_mgL", "BIX", "HIX", "A_T", "NO3NO2_ugL", "NH4_ugL", 
 
 
 #Across dates
-chem_chla |> 
+chem |> 
   pivot_longer(-c(1:8)) |> 
   # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
@@ -65,7 +57,7 @@ levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep",
                "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
 
 #By dates
-Chem_by_date_SI_fig <- chem_chla |> 
+Chem_by_date_SI_fig <- chem |> 
   pivot_longer(-c(1:8)) |>  
   # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
@@ -98,7 +90,7 @@ Chem_by_date_SI_fig
 ```{r}
 
 #Faceting
-chem_chla |> 
+chem |> 
   pivot_longer(-c(1:8)) |> 
   ggplot(aes(x = Distance, y = value, fill = Depth_m))+
   geom_point(shape = 21, size = 3) + #shape = 21,
@@ -114,7 +106,7 @@ chem_chla |>
 
 #### just one variable
 #BIX  # bix_clean <- 
-chem_chla |> 
+chem |> 
   ggplot(aes(x = Distance, y = BIX, fill = Depth_m))+
   #geom_point(shape = 21, size = 3) + #shape = 21,
   geom_jitter(size = 3, shape = 21, width = 10, height = 0)+
@@ -150,12 +142,12 @@ chem_chla |>
 #### normality
   ##https://www.sthda.com/english/wiki/normality-test-in-r
 
-ggdensity(chem_chla$BIX, xlab = "BIX", main = "Density plot of BIX in CCR")
-shapiro.test(chem_chla$BIX) # p-values < 0.05 means data is not normally distributed
-ggdensity(chem_chla$DOC_mgL, xlab = "DOC (mg/L)", main = "Density plot of DOC in CCR")
-shapiro.test(chem_chla$DOC_mgL) 
-ggdensity(chem_chla$d2H_VSMOW, xlab = "dH2", main = "Density plot of dH2 in CCR")
-shapiro.test(chem_chla$d2H_VSMOW) 
+ggdensity(chem$BIX, xlab = "BIX", main = "Density plot of BIX in CCR")
+shapiro.test(chem$BIX) # p-values < 0.05 means data is not normally distributed
+ggdensity(chem$DOC_mgL, xlab = "DOC (mg/L)", main = "Density plot of DOC in CCR")
+shapiro.test(chem$DOC_mgL) 
+ggdensity(chem$d2H_VSMOW, xlab = "dH2", main = "Density plot of dH2 in CCR")
+shapiro.test(chem$d2H_VSMOW) 
 
 
 ```
@@ -167,7 +159,7 @@ shapiro.test(chem_chla$d2H_VSMOW)
 
 ```{r}
 ## first add site type to chem data frame 
-chem_kruskal <- chem_chla |> 
+chem_kruskal <- chem |> 
   mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
          Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
          Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),

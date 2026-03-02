@@ -103,6 +103,15 @@ hydro_daily |>
   facet_wrap(~name, scales = "free_y", ncol = 1)
 
 
+## write csv that has interpolated stage HPB
+hydro_daily_export <- hydro_daily |> 
+  mutate(HPB_stage_cm = ifelse(is.na(HPB_daily_Stage_cm), predicted_hpb_T, HPB_daily_Stage_cm )) |> 
+  select(Date, Daily_rain_mm, Dam_daily_WaterLevel_m, HPB_stage_cm) 
+
+# write.csv(hydro_daily_export, "./Data/Hydro_daily.csv", row.names = F)
+
+
+
 
 
 #### Hydrology MS timeseries figure ####
