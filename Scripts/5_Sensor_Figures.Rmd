@@ -43,17 +43,178 @@ df_filtered <- sensors %>%
 ```
 
 
+```{r}
+
+plot_sensors <- function(df,
+                     fill_var = NULL,       # variable to fill by
+                     fill_var_label = NULL, # what text to use for color ramp label
+                     Sites = NULL,          # sites to remove
+                     X_breaks = NULL,       # numeric vector
+                     Y_breaks = NULL       # numeric vector
+                     ) {     
+  
+  df %>%
+    filter(Site_code %in% Sites) %>%
+    mutate(
+      Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
+      Dry_end   = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA),
+      Date1     = format(Date, "%d %b")
+    ) %>%
+    ggplot(aes(x = Distance, y = Depth_m, fill = {{ fill_var }} )) +
+      geom_hline(yintercept = 0, color = "blue") +
+      geom_rect(aes(xmin = Dry_start, xmax = Dry_end,
+                    ymin = -Inf, ymax = Inf),
+                alpha = 1, fill = "gray", color = NA) +
+      geom_line(aes(y = Max_Depth_Site_m + 0.1),
+                size = 1, color = "brown") +
+      facet_wrap(~factor(Date1, levels = levels_db), nrow = 1) +
+      geom_point(size = 3, shape = 21) +
+      theme_bw() +
+      theme(
+        legend.position = "top",
+        text = element_text(size = 14),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()
+      ) +
+      labs(
+        x = "Distance from Stream (m)",
+        y = "Depth (m)",
+        fill = fill_var_label
+      ) +
+      scale_y_reverse(breaks = Y_breaks) +
+      scale_x_continuous(breaks = X_breaks) +
+      scale_fill_distiller(palette = "Spectral", direction = -1)
+  
+} # end function
+
+
+```
+
+
+ 
+Use function to plot sensors S1 to C1
+
+```{r}
+#set break values
+x_breaks_list_S1_C1 <- c(0, 150, 300)
+y_breaks_list_S1_C1 <- c(0, 0.5, 1, 1.5, 2, 2.5)
+
+## TEMP
+plot_sensors(
+  df = df_filtered,
+  fill_var = Temp_C,
+  fill_var_label = "Temp (C)",
+  Sites = c("S1", "S2", "B1", "B2", "C1"),
+  X_breaks = x_breaks_list_S1_C1,
+  Y_breaks = y_breaks_list_S1_C1
+)
+
+```
+
+ 
+ Use function to plot sensors S1 to P2
+
+```{r}
+#set break values
+x_breaks_list_S1_P2 <- c(0, 500, 1000, 1500)
+y_breaks_list_S1_P2 <- c(0, 3, 6, 9, 12, 15, 18, 21)
+
+## TEMP
+plot_sensors(
+  df = df_filtered,
+  fill_var = Temp_C,
+  fill_var_label = "Temp (C)",
+  Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
+  X_breaks = x_breaks_list_S1_P2,
+  Y_breaks = y_breaks_list_S1_P2
+)
+
+```
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+## OLD MS figures 
+
+
+Stream to C1 for Main MS
+
+```{r}
+
+#### COnd
+summary(sensors$SpCond_uScm)
+
+cond_S1_C1 <- sensors |> 
+  filter(!Site %in% c(50,88,90)) |> 
+    mutate(Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
+         Dry_end = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA)) |> #so just one row has info for dry start and end, was having issues where laying multiple rectangles for more observations affected shading color
+  mutate(Date1 = format(Date, "%d %b")) |> 
+  ggplot(aes(x = Distance, y = Depth_m, fill = SpCond_uScm))+
+  geom_hline(yintercept = 0, color = "blue")+ # line for surface of the water
+  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
+            alpha = 1, fill = "gray", color = NA )+ #Line for dry reach; color gets rid of border
+    geom_line(aes(y = Max_Depth_Site_m+0.1), color = "brown")+ #line for max depth
+  facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
+  geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)",
+       y = "Depth (m)", fill = "SC (uS/cm)")+ # can use \n to break the text
+  scale_x_continuous(breaks = c(0, 150, 300), limits = c(-40, 380)) +
+  ylim(-0.1,3)+
+  scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5), 
+                  #limits = c(0.2, 3)
+                  )+
+  ##add labels for site type starting
+     annotate("text",
+           x = c(0, 189, 336),
+           y = -0.1,
+           label = c("S1", "B1", "C1"),
+           # hjust = -0.01,     # pushes labels above the plotting area
+           size = 3
+           )+
+  scale_fill_distiller(palette = "Spectral", direction = -1)
+
+cond_S1_C1
+
+
+```
+ 
+ 
+ 
+ 
+ 
+ ----------------------------------- SWF --------------------------------------------------------
+ 
+ 
+ 
+ 
 ## Calculate stream water fraction
 
 ```{r}
 #### calculate stream water fraction adapting methods from Eveleth et al. 2024
 ##get mean reservoir conductivity by date and make a look up table
-Lake_lookup <- sensors |> filter(Site %in% c(88,50)) |> select(Date, SpCond_uScm) |> 
+Lake_lookup <- df_filtered |> filter(Site %in% c(88,50)) |> select(Date, SpCond_uScm) |> 
   group_by(Date) |> 
   summarise(Lake_SC = mean(SpCond_uScm, na.rm = T))
 
 ##make lookup table for stream cond by sampling date
-S1_lookup <- sensors |> filter(Site == 101) |> select(Date, SpCond_uScm) |> 
+S1_lookup <- df_filtered |> filter(Site == 101) |> select(Date, SpCond_uScm) |> 
   rename(S1_SC = SpCond_uScm)
 
 
@@ -70,18 +231,19 @@ SWF_data <- df_filtered |>
 
 
 ```
-
-
+ 
+ 
 ## Function to plot SWF 
 
 ```{r}
 
 plot_swf <- function(df,
                      fill_var = NULL,       # variable to fill by
-                     fill_var_label = NULL, #what text to use for color ramp label
+                     fill_var_label = NULL, # what text to use for color ramp label
                      Sites = NULL,          # sites to remove
                      X_breaks = NULL,       # numeric vector
-                     Y_breaks = NULL) {     # numeric vector
+                     Y_breaks = NULL       # numeric vector
+                     ) {     
   
   df %>%
     filter(Site_code %in% Sites) %>%
@@ -106,8 +268,8 @@ plot_swf <- function(df,
         legend.text = element_text(size = 10),
         legend.title = element_text(size = 10),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-           ) +
+        panel.grid.minor = element_blank()
+      ) +
       labs(
         x = "Distance from Stream (m)",
         y = "Depth (m)",
@@ -117,12 +279,13 @@ plot_swf <- function(df,
       scale_x_continuous(breaks = X_breaks) +
       scale_fill_distiller(palette = "Spectral", direction = -1)
   
-}#end function
+} # end function
 
 
 ```
-
-
+ 
+ 
+ 
 ## Make plots of SWF for sites S1 to C1
 
 ```{r}
@@ -193,54 +356,4 @@ sensors_SWF_S1_C1
  
  
  
- 
- 
- 
- 
- 
-## OLD MS figures 
-
-
-Stream to C1 for Main MS
-
-```{r}
-
-#### COnd
-summary(sensors$SpCond_uScm)
-
-cond_S1_C1 <- sensors |> 
-  filter(!Site %in% c(50,88,90)) |> 
-    mutate(Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
-         Dry_end = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA)) |> #so just one row has info for dry start and end, was having issues where laying multiple rectangles for more observations affected shading color
-  mutate(Date1 = format(Date, "%d %b")) |> 
-  ggplot(aes(x = Distance, y = Depth_m, fill = SpCond_uScm))+
-  geom_hline(yintercept = 0, color = "blue")+ # line for surface of the water
-  geom_rect(aes(xmin = Dry_start, xmax = Dry_end, ymin = -Inf, ymax = Inf), 
-            alpha = 1, fill = "gray", color = NA )+ #Line for dry reach; color gets rid of border
-    geom_line(aes(y = Max_Depth_Site_m+0.1), color = "brown")+ #line for max depth
-  facet_wrap(~factor(Date1, levels = levels_db), scales = "fixed", nrow = 1)+
-  geom_point(size = 3, shape = 21)+ #need shape here if not doing site type
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 12),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)",
-       y = "Depth (m)", fill = "SC (uS/cm)")+ # can use \n to break the text
-  scale_x_continuous(breaks = c(0, 150, 300), limits = c(-40, 380)) +
-  ylim(-0.1,3)+
-  scale_y_reverse(breaks = c(0, 0.5, 1, 1.5, 2, 2.5), 
-                  #limits = c(0.2, 3)
-                  )+
-  ##add labels for site type starting
-     annotate("text",
-           x = c(0, 189, 336),
-           y = -0.1,
-           label = c("S1", "B1", "C1"),
-           # hjust = -0.01,     # pushes labels above the plotting area
-           size = 3
-           )+
-  scale_fill_distiller(palette = "Spectral", direction = -1)
-
-cond_S1_C1
-
-
-```
  
