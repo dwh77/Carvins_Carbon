@@ -49,10 +49,25 @@ iso_ccr <- iso_EDI |>
   select(Reservoir, Site, Date, Depth_m, d18O_VSMOW, d2H_VSMOW)
 
 
+#### Chl-a
+chla_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/555/6/3e40495b2e8150ae068cb5a2d00714cd")
+
+chla_ccr1 <- chla_edi |> 
+  filter(Reservoir == "CCR") |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date %in% sampling_dates) 
+#take a look at the flags in this DF, mostly just a lot are below detection
+
+chla_ccr <- chla_ccr1 |> 
+  group_by(Reservoir, Site, Date, Depth_m) |> 
+  summarise(across(c(Chla_ugL), mean, na.rm = TRUE))
+
+
 
 ### Join dataframes 
 joined_ccr_chem <- full_join(eems_ccr, iso_ccr, by = c("Reservoir", "Site","Date", "Depth_m")) |> 
-  full_join(chem_ccr, by = c("Reservoir", "Site","Date", "Depth_m"))
+  full_join(chem_ccr, by = c("Reservoir", "Site","Date", "Depth_m")) |> 
+  left_join(chla_ccr, by = c("Reservoir", "Site","Date", "Depth_m"))
 
 
 #Site 90 (C2) had extra depth samples collected at 1.5 meters on each day, confirm this and remove those so the two Cove sites are just surface and max depth samples
@@ -70,6 +85,9 @@ joined_ccr_chem3 <- joined_ccr_chem2 |>
   mutate(DON_mgL = DN_mgL - ((NO3NO2_ugL + NH4_ugL)/1000)) |> 
   mutate(SUVA254 = a254_m / DOC_mgL) |> 
   mutate(D_excess = d2H_VSMOW - 8*d18O_VSMOW) 
+
+#check that all observations are CCR (so we can drop Reservoir column below)
+unique(joined_ccr_chem3$Reservoir)
 
 
 
@@ -93,11 +111,12 @@ distances <- distances_ft |>
 
 ####bind distances to chem 
 chem_distances_final <- left_join(joined_ccr_chem3, distances, by = c("Date", "Site")) |> 
+  ungroup() |> 
   #order data 
-  select(Reservoir, Site, Site_code, Date, Depth_m, Distance, Dry_start, Dry_end,
+  select(Site, Site_code, Date, Depth_m, Distance, Dry_start, Dry_end,
        HIX, BIX, FI, Peak_A, Peak_T, A_T, a254_m, SUVA254,
        d18O_VSMOW, d2H_VSMOW, D_excess,
-       DOC_mgL, DON_mgL, DN_mgL, NO3NO2_ugL, NH4_ugL, SRP_ugL)
+       DOC_mgL, DON_mgL, DN_mgL, NO3NO2_ugL, NH4_ugL, SRP_ugL, Chla_ugL)
 
 
 #### Write final csv ####

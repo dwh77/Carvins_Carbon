@@ -19,6 +19,9 @@ chem_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/199/13/3f09
 ## Isotopes
 iso_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/1745/1/71e54498052b76e103898e0b07426a7c")
 
+##Chla
+chla_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/555/6/3e40495b2e8150ae068cb5a2d00714cd")
+
 
 
 #### Sensor data sets ####
