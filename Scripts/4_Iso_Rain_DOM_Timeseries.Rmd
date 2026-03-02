@@ -1,0 +1,325 @@
+---
+title: "4_Iso_DOM_timeseries"
+output: html_document
+date: "2026-03-02"
+---
+
+## load packages and read in data
+```{r}
+###packages 
+library(tidyverse)
+
+getwd()
+##get data
+hydro <- read_csv("../Data/Hydrology_Daily_Observed.csv") |> 
+  filter(Date >= ymd("2024-05-01"),
+         Date <= ymd("2025-04-30"))
+
+chem <- read_csv("../Data/chemistry_joined.csv")
+
+```
+
+
+
+## Visualize isotope data sets
+
+```{r}
+#plot over distance 
+##d2H and d18O and D excess
+isotopes_across_space_fig <- chem |> 
+  dplyr::select(1:8, d18O_VSMOW, d2H_VSMOW, D_excess) |> 
+  rename(d_excess = D_excess) |> 
+  pivot_longer(-c(1:8)) |> 
+  ggplot(aes(x = Distance, y = value, fill = Depth_m
+  ))+
+  geom_point(shape = 21, size = 3) + 
+  #geom_point(data = iso_rain, mapping = aes(x = 1250, y = value, color = Date), size = 2, shape = 17)+
+  facet_wrap(~name, scales = "free_y", nrow = 1)+
+  theme_bw()+ theme(legend.position = "top", text = element_text(size = 16),
+                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x= "Distance from Stream (m)", y = "\u2030",
+       fill = "Depth (m)", color = "Rain")+
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+  
+  scale_fill_gradient2(low = "red",  high ="blue",
+                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15, 20))
+
+isotopes_across_space_fig
+
+#ggsave("./Figures/Iso_overSpace_SI_fig.png", isotopes_across_space_fig, width = 7, height = 3.5, units = "in")
+
+```
+
+
+## Function to make Iso Rain and DOM figures 
+
+```{r}
+
+plot_iso_ts <- function(
+    data,        # df with isotope data: Date, y_var, Site_code, Depth_new
+    hydro,       # df with rain data: Date, Daily_rain_mm
+    y_var,
+    y_label,
+    show_rain = TRUE,
+    depths = c("0.1","BOT")
+) {
+  
+  # Filter depths
+  df <- data |> 
+    filter(Depth_new %in% depths)
+  
+  # Compute scaling factor only if rain is shown
+  if (show_rain) {
+    max_y  <- max(df[[y_var]], na.rm = TRUE)
+    min_y  <- min(df[[y_var]], na.rm = TRUE)
+    y_range <- max_y - min_y
+    max_r  <- max(hydro$Daily_rain_mm, na.rm = TRUE)
+    scale_factor <- y_range / max_r
+    
+    # Buffer creates blank space between top of y data and rain bars
+    buffer <- y_range * 0.10
+    plot_max_y <- max_y + buffer
+    
+    # Ensure largest rain bar isn't clipped
+    plot_min_y <- min(min_y, plot_max_y - (max_r * scale_factor))
+  }
+  
+  # Base plot
+  p <- ggplot(df, aes(x = Date))
+  
+  # Rain bars FIRST so they sit behind the isotope data
+  if (show_rain) {
+    p <- p +
+      geom_rect(
+        data = hydro,
+        aes(
+          xmin = Date - 0.5,
+          xmax = Date + 0.5,
+          ymin = plot_max_y,
+          ymax = plot_max_y - (Daily_rain_mm * scale_factor)
+        ),
+        fill = "blue",
+        alpha = 1,
+        show.legend = FALSE
+      ) +
+      scale_y_continuous(
+        limits = c(plot_min_y, plot_max_y),
+        sec.axis = sec_axis(
+          transform = ~ (plot_max_y - .) / scale_factor,
+          name = "Rainfall (mm)"
+        )
+      )
+  }
+  
+  # Isotope points + lines on top
+  p <- p +
+    geom_point(aes(y = .data[[y_var]],
+                   color = Site_code,
+                   shape = Site_code,
+                   group = interaction(Site_code, Depth_new)),
+               size = 3) +
+    geom_line(aes(y = .data[[y_var]],
+                  color = Site_code,
+                  linetype = Depth_new,
+                  group = interaction(Site_code, Depth_new)),
+              size = 1.3)
+  
+  # Labels
+  p <- p +
+    labs(x = "Date",
+         y = y_label,
+         color = "Site",
+         shape = "Site",
+         linetype = "Depth")
+  
+  # Theme
+  p <- p +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      text = element_text(size = 16),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    guides(color = guide_legend(nrow = 2, byrow = TRUE))
+  
+  # Manual scales
+  p <- p +
+    scale_x_date(
+      breaks = "1 month", date_labels = "%b",
+      limits = as.Date(c("2024-05-01", "2025-04-30"))
+    ) +
+    scale_color_manual(values = site_colors, breaks = iso_levels_sites) +
+    scale_shape_manual(values = site_shapes, breaks = iso_levels_sites) +
+    scale_linetype_manual(values = c("0.1" = "solid", "BOT" = "twodash"))
+  
+  return(p)
+} #end function 
+
+
+```
+
+
+## Set up data and schemes for figure 
+
+data
+
+```{r}
+##filter chem to surf and bot and make new Depth column
+chem_df <- chem |> 
+  select(1:6, d2H_VSMOW, d18O_VSMOW, D_excess, DOC_mgL, BIX) |> 
+  mutate(Depth_new = as.character(ifelse(Site %in% c(98,96,92, 90) & Depth_m > 0.1, "BOT", Depth_m)),
+         Depth_new = as.character(ifelse(Site %in% c(88,50) & Depth_m > 9, "BOT", Depth_new))
+  ) |> 
+  filter(Depth_new %in% c("0.1", "BOT")) 
+
+## filter hydro to just rain
+hydro_df <- hydro |> 
+  select(Date, Daily_rain_mm)
+  
+
+
+```
+
+
+levels for plotting
+
+```{r}
+
+#### set up levels 
+iso_levels_sites <- c("S1","S2","B1","B2","C1","C2","P1","P2")
+
+site_colors <- c("S1" = "#30123BFF", "S2" = "#30123BFF",
+                 "B1" = "#1BD0D5FF", "B2" = "#1BD0D5FF",
+                 "C1" = "#D2E935FF", "C2" = "#D2E935FF",
+                 "P1" = "#DB3A07FF", "P2" = "#DB3A07FF")
+
+site_shapes <- c("S1" = 15, "S2" = 16,
+                 "B1" = 15, "B2" = 16,
+                 "C1" = 15, "C2" = 16,
+                 "P1" = 15, "P2" = 16)
+
+```
+
+
+## check functions working
+mainly to check that scaling didn't distort actual values
+
+```{r}
+#run function
+plot_iso_ts(data = chem_df, hydro = hydro_df, 
+                           y_var = "D_excess", y_label = "D-excess (‰)",
+                               show_rain = TRUE,  depths = c("0.1","BOT"))
+
+#plot rain as check
+hydro_df |> ggplot(aes(x = Date, y = Daily_rain_mm))+ geom_point()+ scale_y_reverse()
+
+#iso as check
+chem_df |> 
+  ggplot(aes(x = Date, y = D_excess))+
+geom_point(aes(    color = Site_code,
+                   shape = Site_code,
+                   group = interaction(Site_code, Depth_new)),
+               size = 3) +
+    geom_line(aes(color = Site_code,
+                  linetype = Depth_new,
+                  group = interaction(Site_code, Depth_new)),
+              size = 1.3)+
+   scale_x_date(
+      breaks = "1 month", date_labels = "%b",
+      limits = as.Date(c("2024-05-01", "2025-04-30"))
+    ) +
+    scale_color_manual(values = site_colors, breaks = iso_levels_sites) +
+    scale_shape_manual(values = site_shapes, breaks = iso_levels_sites) +
+    scale_linetype_manual(values = c("0.1" = "solid", "BOT" = "twodash"))
+
+
+```
+
+
+
+
+## Make d-excess plots with rain 
+
+```{r}
+#### Just surface 
+iso_rain_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df, 
+                           y_var = "D_excess", y_label = "D-excess (‰)",
+                               show_rain = TRUE,  depths = c("0.1"))
+
+iso_rain_surf
+
+
+#### Surf and BOT 
+plot_iso_ts(data = chem_df, hydro = hydro_df,
+                    y_var = "D_excess",  y_label = "d-excess (\u2030)",
+                    show_rain = TRUE,  depths = c("0.1","BOT"))
+
+
+```
+
+
+
+## Make iso and DOM plots without rain
+
+```{r}
+iso_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df,
+                    y_var = "D_excess",  y_label = "d-excess (\u2030)",
+                    show_rain = F,  depths = c("0.1"))
+
+iso_surf_bot <- plot_iso_ts(data = chem_df, hydro = hydro_df,
+                    y_var = "D_excess",  y_label = "d-excess (\u2030)",
+                    show_rain = F,  depths = c("0.1","BOT"))
+
+
+doc_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df,
+                    y_var = "DOC_mgL",  y_label = "DOC (mg/L)",
+                    show_rain = TRUE,  depths = c("0.1"))
+  
+
+bix_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df,
+                    y_var = "BIX",  y_label = "BIX",
+                    show_rain = F,  depths = c("0.1"))
+
+```
+
+
+
+
+
+
+
+
+
+
+## Make just the rain TS 
+
+```{r}
+#### First rain plot only TS upside down
+rain_ts <- hydro_df |> 
+  ggplot() +
+  geom_col(aes(x = Date, y = Daily_rain_mm ),
+           fill = "blue", width = 1,
+           show.legend = FALSE) +
+  scale_y_reverse()+
+  scale_x_date(breaks = "1 month", date_labels = "%b",
+      limits = as.Date(c("2024-05-01", "2025-04-30"))
+    )+
+  labs(x = "Date", y = "Daily Rainfall (mm)") +
+   theme_bw() +
+  theme(text = element_text(size = 16),
+    panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+
+rain_ts
+
+```
+
+
+
+
+
+
+
+
+
+
+
