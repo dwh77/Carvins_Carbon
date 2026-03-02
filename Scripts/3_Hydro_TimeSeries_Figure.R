@@ -3,6 +3,10 @@
 
 ## packages 
 library(tidyverse)
+library(ggpmisc) #stat poly line
+library(mgcv) #for GAMs
+
+
 
 ## read in data
 hydro_daily <- read.csv("./Data/Hydrology_Daily_Observed.csv") |> 
@@ -14,7 +18,6 @@ hydro_daily <- read.csv("./Data/Hydrology_Daily_Observed.csv") |>
   
   
 ######## Gap fill missing HPB stage data ####
-library(ggpmisc) #stat poly line
 
 
 #### Look at linear regressions between USGS stage and HPB stage
@@ -39,8 +42,6 @@ hydro_daily |>
 
 
 #### Try GAMs 
-library(mgcv)
-
 
 hydro_daily |> 
   ggplot(aes(x = Stage_Tinker_ft, y = HPB_daily_Stage_cm))+

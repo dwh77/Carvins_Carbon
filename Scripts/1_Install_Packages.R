@@ -1,23 +1,25 @@
 #### Install needed packages 
 
-install.packages('tidyverse')
+install.packages('tidyverse') #this also brings in dplyr and lubridate
 install.packages('plyr') #rbind.fill
-install.packages('dataRetrieval') #read in USGS data
 install.packages('ggpmisc') #stat_poly_line
+install.packages('dataRetrieval') #read in USGS data
 install.packages('mgcv') # for USGS to stage GAMs
 
-library(segmented) #for breakpoints
+install.packages('segmented') #for breakpoints
+
+install.packages('rLakeAnalyzer') #water.density
 
 #kruskal wallis boxplot function
-library(FSA)
-library(rcompanion)
-library(ggpubr)
-library(rlang)
+install.packages('FSA')
+install.packages('rcompanion')
+install.packages('ggpubr') # for ggdensity
+install.packages('rlang')
 
 #arranging figures
-library(gridExtra)
-library(cowplot)
-library(patchwork)
+install.packages('gridExtra')
+install.packages('cowplot')
+install.packages('patchwork')
 
 
 

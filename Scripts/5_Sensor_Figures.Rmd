@@ -10,6 +10,7 @@ date: "2025-11-24"
 ```{r}
 #packages 
 library(tidyverse)
+library(rLakeAnalyzer) #water.density
 
 ### Date levels for plotting
 levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
@@ -61,10 +62,11 @@ SWF_data <- df_filtered |>
   #join data sets
   left_join(S1_lookup, by = "Date") |> 
   left_join(Lake_lookup, by = "Date") |> 
-  #Calc stream water fraction
-  mutate(SWF = (SpCond_uScm - Lake_SC) / (S1_SC - Lake_SC) ) |> 
   #Calc water density as well (just based on individual measures of water temp) for another metric
-  mutate(density = rLakeAnalyzer::water.density(Temp_C)) 
+  mutate(density = water.density(Temp_C)) |>
+  #Calc stream water fraction
+  mutate(SWF = (SpCond_uScm - Lake_SC) / (S1_SC - Lake_SC) ) 
+  
 
 
 ```

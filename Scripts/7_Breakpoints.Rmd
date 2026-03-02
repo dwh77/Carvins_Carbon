@@ -8,7 +8,6 @@ date: "2025-07-21"
 
 ```{r}
 ## packages 
-library(ggpubr) # for ggdensity
 library(segmented) #for breakpoints
 library(tidyverse)
 library(patchwork) # so you can arrange figures by "/" or "|"
