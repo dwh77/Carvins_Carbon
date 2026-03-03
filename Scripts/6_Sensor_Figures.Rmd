@@ -243,6 +243,8 @@ plot_swf <- function(df,
                      fill_var = NULL,       # variable to fill by
                      fill_var_label = NULL, # what text to use for color ramp label
                      Sites = NULL,          # sites to remove
+                     size_var = SWF,            #what variable to make the size by
+                     size_var_label = "SWF", # what text to use for color ramp label
                      X_breaks = NULL,       # numeric vector
                      Y_breaks = NULL,       # numeric vector
                      show_depthlines = TRUE   # toggle blue hline + brown geom_line
@@ -255,7 +257,7 @@ plot_swf <- function(df,
       Dry_end   = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA),
       Date1     = format(Date, "%d %b")
     ) %>%
-    ggplot(aes(x = Distance, y = Depth_m, fill = {{ fill_var }}, size = SWF))
+    ggplot(aes(x = Distance, y = Depth_m, fill = {{ fill_var }}, size = {{ size_var }}))
   
   if (show_depthlines) {
     p <- p + geom_hline(yintercept = 0, color = "blue")
@@ -285,7 +287,8 @@ plot_swf <- function(df,
     labs(
       x = "Distance from Stream (m)",
       y = "Depth (m)",
-      fill = fill_var_label
+      fill = fill_var_label, 
+      size = size_var_label,
     ) +
     scale_y_reverse(breaks = Y_breaks) +
     scale_x_continuous(breaks = X_breaks) +
@@ -303,6 +306,17 @@ plot_swf <- function(df,
 ## Make plots of SWF for sites S1 to C1
 
 ```{r}
+## look at density
+plot_swf(df = SWF_data,
+                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
+                           Sites = c("S1", "S2", "B1", "B2", "C1"),
+         size_var = density, size_var_label = "Density (kg/m3)",
+                           X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1,
+                           show_depthlines = TRUE)
+
+
+
+#### SWF
 
 ## TEMP
 temp_SWF_s1_c1 <- plot_swf(df = SWF_data,
@@ -347,6 +361,17 @@ sensors_SWF_S1_C1
 ## Make plots of SWF for sites S1 to P2
 
 ```{r}
+## look at density
+plot_swf(df = SWF_data,
+                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
+                           Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
+         size_var = density, size_var_label = "Density (kg/m3)",
+                          X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
+                           show_depthlines = TRUE)
+
+
+
+#### SWF
 
 ## TEMP
 temp_SWF_s1_p2 <- plot_swf(df = SWF_data,
