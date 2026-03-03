@@ -10,42 +10,14 @@ date: "2025-07-21"
 library(ggpubr) # for ggdensity
 library(tidyverse)
 library(patchwork) # so you can arrange figures by "/" or "|"
+library(gridExtra)
+
 
 ## read in chem data
 chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")   
 
 ```
 
-
-
-##look at all the DOM comp
-
-```{r}
-#DOM comp options
-levels <- c("BIX", "HIX", "FI", "Peak_A", "Peak_T", "A_T", "a254_m", "SUVA254")
-levels <- c("BIX", "HIX", "A_T", "SUVA254")
-#all variable options
-levels <- c("DOC_mgL", "BIX", "HIX", "d18O_VSMOW", "d2H_VSMOW", "D_excess")
-levels <- c("DOC_mgL", "DON_mgL", "BIX", "HIX", "A_T", "NO3NO2_ugL", "NH4_ugL", "SRP_ugL","D_excess")
-
-
-#Across dates
-chem |> 
-  pivot_longer(-c(1:8)) |> 
-  # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
-  filter(name %in% levels) |> 
-  ggplot(aes(x = Distance, y = value, fill = Depth_m))+
-   geom_point(shape = 21, size = 4) +
-  facet_wrap(~factor(name, levels = levels), scales = "free_y")+
-  theme_bw()+ theme(legend.position = "top", text = element_text(size = 18),
-                    panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(x= "Distance from Stream (m)", fill = "Depth (m)")+
-  scale_x_continuous(breaks = c(0, 500, 1000, 1500))+ 
-  scale_fill_gradient2(low = "red",  high ="blue",
-                       midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
-
-
-```
 
 
 ## SI figure of chem variables by date
@@ -161,7 +133,7 @@ shapiro.test(chem$d2H_VSMOW)
 ## first add site type to chem data frame 
 chem_kruskal <- chem |> 
   mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
-         Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
+         Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Back", Site_Type),
          Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),
          Site_Type = ifelse(Site_code %in% c("P1", "P2"), "Pelagic", Site_Type)
          )
@@ -172,15 +144,22 @@ chem_kruskal <- chem |>
 ## Make function for KW plots
 
 ```{r}
+
 library(tidyverse)
 library(FSA)
 library(rcompanion)
 library(ggpubr)
 library(rlang)
 
-#### Function
+site_colors <- c("Stream" = "#30123BFF",
+                 "Back" = "#1BD0D5FF", 
+                 "Cove" = "#D2E935FF", 
+                 "Pelagic" = "#DB3A07FF" )
 
-make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type", level_order = c("Stream", "Backwater", "Cove", "Pelagic")) {
+make_kruskal_dunn_plot <- function(df, response_var, 
+                                   response_var_label = NULL, 
+                                   group_var = "Site_Type", 
+                                   level_order = c("Stream", "Back", "Cove", "Pelagic")) {
   
   group_sym <- rlang::sym(group_var)
   response_sym <- rlang::sym(response_var)
@@ -201,32 +180,75 @@ make_kruskal_dunn_plot <- function(df, response_var, group_var = "Site_Type", le
   
   # Calculate dynamic label position
   y_max <- max(df[[response_var]], na.rm = TRUE)
-  label_y <- y_max + 0.01 * abs(y_max)  # Add 10% buffer above max
+  label_y <- y_max + 0.01 * abs(y_max)
+  
+  # Clean p-value label
+  p_val <- kruskal$p.value
+  p_label <- if (p_val < 0.001) {
+    "p < 0.001"
+  } else if (p_val < 0.01) {
+    "p < 0.01"
+  } else if (p_val < 0.05) {
+    "p < 0.05"
+  } else {
+    paste0("p = ", round(p_val, 3))
+  }
   
   p <- ggplot(df_plot, aes(x = factor(!!group_sym, levels = level_order), y = !!response_sym)) +
-    geom_boxplot(outlier.alpha = 0) +
+    geom_boxplot(aes(fill = factor(!!group_sym, levels = level_order)), outlier.alpha = 0, alpha = 0.5) +
     geom_jitter(width = 0.2) +
-    stat_compare_means(method = "kruskal.test", label.y = label_y * 1.1, label.x = 1.3, size = 4) +
+    annotate("text", x = 1.8, y = label_y * 1.1, label = paste("KW", p_label, sep = " "), size = 4) +
     geom_text(aes(label = Letter), y = label_y * 1.05, size = 5) +
-    theme_bw() +
-    theme(#axis.text.x = element_text(angle = 0, hjust = 0), #can make angle = 45 and hjust = 1 to shift x label
-          text = element_text(size = 12),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank()) +
-    labs(x = "Site Type", y = response_var)
+    scale_fill_manual(values = site_colors) +
+        theme_bw() +
+    theme(
+      text = element_text(size = 14),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "none"
+    ) +
+    labs(x = "Site Type", 
+         y = if (!is.null(response_var_label)) response_var_label else response_var
+         )
+
   
-  return(p)
+  # Return plot and stats as a list
+  return(list(
+    plot = p,
+    kruskal = kruskal,
+    dunn = dunn
+  ))
   
-} #end of function
+} # end of function
+
+
 
 ```
+
+
+Test function works 
+
+```{r}
+##run just one
+bix_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "BIX")
+bix_kw$plot
+bix_kw$kruskal
+bix_kw$dunn
+
+#just doc testing label
+make_kruskal_dunn_plot(df = chem_kruskal, response_var = "DOC_mgL")
+
+make_kruskal_dunn_plot(df = chem_kruskal, response_var = "DOC_mgL", response_var_label = "DOC (mg/L)")
+
+```
+
 
 
 ## Run function to make all boxplots
 
 ```{r}
 
-#### Run function 
+#define what plots to make
 response_vars <- c(
                    "BIX", "HIX", "A_T", "SUVA254", 
                    "DOC_mgL", "DN_mgL", "DON_mgL",
@@ -235,13 +257,37 @@ response_vars <- c(
                    "d18O_VSMOW", "d2H_VSMOW", "D_excess"
                    )  
 
-# Generate plots for each variable
-plots <- lapply(response_vars, function(var) {
+# Generate results for each variable
+results <- lapply(response_vars, function(var) {
   make_kruskal_dunn_plot(chem_kruskal, response_var = var)
 })
 
-# Optionally name the plots
-names(plots) <- response_vars
+names(results) <- response_vars
+
+
+# Plot as before - just add $plot
+gridExtra::grid.arrange(results$DOC_mgL$plot, results$DON_mgL$plot, 
+                        results$BIX$plot, results$HIX$plot, results$A_T$plot, results$SUVA254$plot, nrow = 2)
+
+
+gridExtra::grid.arrange(results$NO3NO2_ugL$plot, results$NH4_ugL$plot, results$DN_mgL$plot, 
+                        results$SRP_ugL$plot, results$Chla_ugL$plot, nrow = 1) #Nutrients
+
+gridExtra::grid.arrange(results$d18O_VSMOW$plot, results$d2H_VSMOW$plot, results$D_excess$plot, nrow = 1) #Isotopes
+
+
+
+
+
+# View stats for specific variables
+results$BIX$kruskal
+results$BIX$dunn
+
+results$DOC_mgL$kruskal
+results$DOC_mgL$dunn
+
+
+
 
 
 
@@ -251,17 +297,34 @@ names(plots) <- response_vars
 ## DOM boxplots
 
 ```{r}
-#view just one
-# plots$BIX
+#### Make DOM boxplots with nice labels for MS
 
-#make a few plots in groups 
-library(gridExtra)
-gridExtra::grid.arrange(plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, nrow = 1) #EEM
-gridExtra::grid.arrange(plots$DOC_mgL, plots$DON_mgL, nrow = 1) #DOM
+##DOC
+doc_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "DOC_mgL", response_var_label = "DOC (mg/L)")
+doc_kw$kruskal
+
+##BIX
+bix_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "BIX")
+bix_kw$kruskal
+
+##HIX
+hix_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "HIX")
+hix_kw$kruskal
+
+##AT
+AT_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "A_T", response_var_label = "Peak A:T Ratio ")
+AT_kw$kruskal
+
+##SUVA 254
+suva_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "SUVA254", response_var_label = "SUVA254")
+suva_kw$kruskal
 
 ### DOM plot for MS 
 
-DOM_boxplots_MS <- cowplot::plot_grid(plots$DOC_mgL, plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, labels = c("a", "b", "c", "d", "e"), nrow = 2)
+DOM_boxplots_MS <- cowplot::plot_grid(doc_kw$plot, bix_kw$plot, hix_kw$plot, AT_kw$plot, suva_kw$plot,
+                                      # plots$DOC_mgL, plots$BIX, plots$HIX, plots$A_T, plots$SUVA254, 
+                                      
+                                      labels = c("a", "b", "c", "d", "e"), nrow = 2)
 
 DOM_boxplots_MS
 
@@ -274,19 +337,32 @@ DOM_boxplots_MS
 ## Nutrients, chla, Isotopes boxplots
 
 ```{r}
+#Make nice boxplots of nutrients and chla for SI 
+##NO3
+no3_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NO3NO2_ugL", response_var_label = "NO3 (ug/L)")
+no3_kw$kruskal
 
-gridExtra::grid.arrange(plots$NO3NO2_ugL, plots$NH4_ugL, plots$DN_mgL, plots$SRP_ugL, nrow = 1) #Nutrients
-gridExtra::grid.arrange(plots$d18O_VSMOW, plots$d2H_VSMOW, plots$D_excess, nrow = 1) #Isotopes
+##NH4
+nh4_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NH4_ugL", response_var_label = "NH4 (ug/L)")
+nh4_kw$kruskal
+
+##SRP
+srp_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "SRP_ugL", response_var_label = "SRP (ug/L)")
+srp_kw$kruskal
+
+##Chl-a
+chla_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "Chla_ugL", response_var_label = "Chl-a (ug/L)")
+chla_kw$kruskal
+
 
 
 ##nutrient boxplots for SI
-nutrient_chla_boxplots_SI <- cowplot::plot_grid(plots$NO3NO2_ugL, plots$NH4_ugL, 
-                                           plots$SRP_ugL, plots$Chla_ugL, 
-                                           labels = c("a", "b", "c", "d"), nrow = 1)
+nutrient_chla_boxplots_SI <- cowplot::plot_grid(no3_kw$plot, nh4_kw$plot, srp_kw$plot, chla_kw$plot, 
+                                           labels = c("a", "b", "c", "d"), nrow = 2)
 
 nutrient_chla_boxplots_SI
 
- # ggsave("../Figures/Nutrient_boxplot_SI.png", nutrient_boxplots_SI, height = 3, width = 8.5, units = "in")
+ggsave("../Figures/NutChla_boxplot_SI.png", nutrient_chla_boxplots_SI, height = 6, width = 8, units = "in")
 
 
 ```
