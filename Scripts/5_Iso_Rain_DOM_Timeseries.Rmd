@@ -201,7 +201,7 @@ mainly to check that scaling didn't distort actual values
 ```{r}
 #run function
 plot_iso_ts(data = chem_df, hydro = hydro_df, 
-                           y_var = "D_excess", y_label = "D-excess (‰)",
+                           y_var = "D_excess", y_label = "d-excess (‰)",
                                show_rain = TRUE,  depths = c("0.1","BOT"))
 
 #plot rain as check
@@ -240,7 +240,7 @@ geom_point(aes(    color = Site_code, shape = Site_code,
 ```{r}
 #### Just surface 
 iso_rain_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df, 
-                           y_var = "D_excess", y_label = "D-excess (‰)",
+                           y_var = "D_excess", y_label = "d-excess (‰)",
                                show_rain = TRUE,  depths = c("0.1"))
 
 iso_rain_surf
