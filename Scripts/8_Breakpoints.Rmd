@@ -30,7 +30,8 @@ chem_bp <- chem |>
           Depth_bins = as.character(ifelse(!Depth_bins %in% c("0.1", "BOT"), "Int", Depth_bins))
   ) |> 
   #zscores
-  mutate(SC_zs = scale(SpCond_uScm),
+  mutate(Temp_zs = scale(Temp_C),
+         SC_zs = scale(SpCond_uScm),
          dexcess_zs = scale(D_excess),
          BIX_zs = scale(BIX),
          HIX_zs = scale(HIX),
@@ -109,6 +110,7 @@ example code for running a singular breakpoint
 ## Breakpoint function for MS figures
 
 ```{r}
+
 run_breakpoint_analysis <- function(df, 
                                     response_var = NULL,
                                     response_var_label = NULL,
@@ -151,7 +153,7 @@ run_breakpoint_analysis <- function(df,
   if (depth_shape) {
     p <- p +
       geom_point(aes(shape = Depth_bins), size = 4) +
-      scale_shape_manual(
+            scale_shape_manual(
         values = c("0.1" = 21, "Int" = 22, "BOT" = 24),
         limits = c("0.1", "Int", "BOT"),
         name = "Depth"
@@ -159,6 +161,8 @@ run_breakpoint_analysis <- function(df,
   } else {
     p <- p +
       geom_point(shape = 21, size = 4)
+      #geom_jitter(shape = 21, size = 4, width = 20)
+    
   }
   
   p <- p +
@@ -169,8 +173,7 @@ run_breakpoint_analysis <- function(df,
       fill = fill_var_label
     ) +
     scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
-    scale_fill_distiller(palette = "Spectral", direction = -1) +
-    geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+     geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
     geom_line(
       data = dist_gradient,
       aes(x = Distance, y = fit),
@@ -193,6 +196,16 @@ run_breakpoint_analysis <- function(df,
       legend.background = element_blank(),
       legend.box.background = element_blank()
     )
+  #change fill color ramp for filling by Depth vs other variables
+    if (fill_var == "Depth_m") {
+    p <- p + scale_fill_gradient2(
+      low = "red", high = "blue",
+      midpoint = 6, guide = "colourbar",
+      breaks = c(3, 6, 9, 15)
+    )
+  } else {
+    p <- p + scale_fill_distiller(palette = "Spectral", direction = -1)
+  }
  
   list(
     plot = p,
@@ -209,7 +222,7 @@ run_breakpoint_analysis <- function(df,
 test that function is working, can toggle on and off inputs below
 ```{r}
 run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX", title = "BIX function test",
-                                        fill_var = "SpCond_uScm", fill_var_label = "Sp Cond", depth_shape = T)
+                                        fill_var = "SpCond_uScm", fill_var_label = "Sp Cond", depth_shape = F)
 
 
 ```
@@ -259,11 +272,41 @@ Dexcess_break$plot / SC_break$plot
 ```
 
 
+Z score SC and dexcess for main MS
+
+```{r}
+
+## Cond
+SC_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "SC_zs", response_var_label = "SC (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+SC_zs_break$plot
+SC_zs_break$davies_test
+SC_zs_break$segmented_summary
+SC_zs_break$segmented_slopes
+
+
+
+## d-excess
+Dexcess_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "dexcess_zs", response_var_label = "d-excess (z-score)",fill_var = "Depth_m", fill_var_label = "Depth (m)")
+
+Dexcess_zs_break$plot
+Dexcess_zs_break$davies_test
+Dexcess_zs_break$segmented_summary
+Dexcess_zs_break$segmented_slopes
+
+
+
+```
+
+
+
+
+
 ### Show changes in Temp, Sc, DO, and d-excess by date
 
 ```{r}
 
-levels <- c("Temp_C", "SpCond_uScm", "DOsat_percent", "D_excess")
+levels <- c("Temp_C", "SpCond_uScm", "D_excess")
 
 levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
                "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
@@ -289,6 +332,7 @@ chem_bp |>
   scale_fill_gradient2(low = "red",  high ="blue",
                        midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
 
+# ggsave("../Figures/Temp_SC_Dexcess_by_Date_SI.png", height = 8, width = 11, units = "in")
 
 
 
@@ -396,6 +440,42 @@ D_break_dry$plot / D_break_wet$plot
 ```
 
 
+SI figure for plunge and dry stream days 
+
+```{r}
+
+##Plunge v no plunge
+SC_break_plunge$plot / SC_break_plungeno$plot
+
+Dexcess_break_plunge$plot / Dexcess_break_plungeno$plot
+
+cowplot::plot_grid(SC_break_plunge$plot, Dexcess_break_plunge$plot , 
+                                    SC_break_plungeno$plot, Dexcess_break_plungeno$plot,
+                                     labels = c("a", "b", "c", "d"), ncol = 2)
+
+#dry v wet 
+SC_break_dry$plot / SC_break_wet$plot
+D_break_dry$plot / D_break_wet$plot
+
+cowplot::plot_grid(SC_break_dry$plot, D_break_dry$plot , 
+                                    SC_break_wet$plot, D_break_wet$plot,
+                                     labels = c("a", "b", "c", "d"), ncol = 2)
+
+
+## all together now 
+SI_plunge_dry_SC_dexcess_fig <-
+  cowplot::plot_grid(SC_break_plunge$plot, Dexcess_break_plunge$plot , SC_break_dry$plot, D_break_dry$plot , 
+                   SC_break_plungeno$plot, Dexcess_break_plungeno$plot, SC_break_wet$plot, D_break_wet$plot,
+                                    # labels = c("a", "b", "c", "d", "e", "f", "g", "h"), 
+                   labels = c("a", "c", "e", "g", "b", "d", "f", "h"), ncol = 4)
+
+
+#ggsave("../Figures/Plunge_dry_SC_Dexcess_SI.png", SI_plunge_dry_SC_dexcess_fig, height = 8, width = 13, units = "in")
+
+
+```
+
+
 
 
 
@@ -425,24 +505,23 @@ bix_zt_break$davies_test
 bix_zt_break$segmented_summary
 bix_zt_break$segmented_slopes
 
+#### HIX
+hix_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "HIX_zs", response_var_label = "HIX \n (z-score)",  fill_var = "Depth_m", fill_var_label = "Depth (m)")
+hix_zt_break$davies_test
+hix_zt_break$segmented_summary
+hix_zt_break$segmented_slopes
+
+
 #### AT
-AT_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "AT_zs", response_var_label = "Peak A:T (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+AT_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "AT_zs", response_var_label = "Peak A:T \n (z-score)",  fill_var = "Depth_m", fill_var_label = "Depth (m)")
 AT_zt_break$davies_test
 AT_zt_break$segmented_summary
 AT_zt_break$segmented_slopes
 
 
-#### HIX
-hix_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "HIX_zs", response_var_label = "HIX (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
-hix_zt_break$davies_test
-hix_zt_break$segmented_summary
-hix_zt_break$segmented_slopes
 
 #### SUVA
-SUVA_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "SUVA254_zs", response_var_label = "SUVA254 (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+SUVA_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "SUVA254_zs", response_var_label = "SUVA254 \n (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
 SUVA_zt_break$davies_test
 SUVA_zt_break$segmented_summary
 SUVA_zt_break$segmented_slopes
@@ -456,33 +535,44 @@ cowplot::plot_grid(AT_zt_break$plot, SUVA_zt_break$plot, hix_zt_break$plot,
 ```
 
 
+Make MS breakpoint figure
+
+```{r}
+
+BP_ms <- cowplot::plot_grid(SC_zs_break$plot, Dexcess_zs_break$plot ,
+                   doc_zt_break$plot, bix_zt_break$plot,
+                                     labels = c("a", "b", "c", "d"), ncol = 1)
+
+
+# ggsave("../Figures/BP_MS.png", BP_ms, height = 9, width = 7, units = "in")
+
+```
+
+
 
 ## BIX to lots of responses for fill
 
 ```{r}
 
-# bix_break <- run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX",
-#                                       fill_var = "Depth_m", fill_var_label = "Depth (m)")
-# 
-# doc_break <- run_breakpoint_analysis(chem_bp, response_var = "DOC_mgL", response_var_label = "DOC (mg/L)",
-#                                       fill_var = "Depth_m", fill_var_label = "Depth (m)")
-# 
-# 
-# #stack
-# library(patchwork)
-# SC_break$plot / Dexcess_break$plot / bix_break$plot / doc_break$plot
-# 
-# #bix other fills
-# bix_break_sc <- run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX",
-#                                       fill_var = "SpCond_uScm", fill_var_label = "SpCond")
-# 
-# bix_break_dexcess <- run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX",
-#                                       fill_var = "D_excess", fill_var_label = "d-excess")
-# 
-# bix_break_stage <- run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX",
-#                                       fill_var = "HPB_stage_cm", fill_var_label = "stream stage")
-# 
-# (bix_break$plot / bix_break_sc$plot) | (bix_break_dexcess$plot / bix_break_stage$plot)
+#stack
+library(patchwork)
+SC_break$plot / Dexcess_break$plot / bix_break$plot / doc_break$plot
+
+#bix other fills
+bix_zt_break_sc <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+                                      fill_var = "SpCond_uScm", fill_var_label = "SpCond")
+
+bix_zt_break_dexcess <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+                                      fill_var = "D_excess", fill_var_label = "d-excess")
+
+bix_zt_break_stage <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+                                      fill_var = "HPB_stage_cm", fill_var_label = "stream stage")
+
+bix_bp_colorrampling <- (bix_zt_break$plot / bix_zt_break_sc$plot) | (bix_zt_break_dexcess$plot / bix_zt_break_stage$plot)
+
+# ggsave("../Figures/BIX_BPs_colorramps.png", bix_bp_colorrampling, height = 8, width = 9, units = "in")
+
+
 
 ```
 
@@ -560,16 +650,16 @@ DOC bix for diff depths - SI fig
 
 ```{r}
 ##plot them all
-DOM_surf_maxdepth_BPs <- cowplot::plot_grid(doc_zt_break$plot, bix_zt_break$plot,  
-                                     doc_zt_surf_break$plot,  bix_zt_surf_break$plot, 
-                                     doc_zt_bot_break$plot, bix_zt_bot_break$plot,
-                                     labels = c("a) DOC all depths", "b) BIX all depths", 
-                                                "c) DOC surface", "d) BIX surface",
-                                                "e) DOC max depth", "f) BIX max depth"), ncol = 2)
+DOM_surf_maxdepth_BPs <- cowplot::plot_grid(doc_zt_surf_break$plot,  bix_zt_surf_break$plot,
+                                            doc_zt_break$plot, bix_zt_break$plot,  
+                                           doc_zt_bot_break$plot, bix_zt_bot_break$plot,
+                                     labels = c("a) DOC surface", "b) BIX surface",
+                                                "c) DOC all", "d) BIX all",
+                                                "e) DOC max", "f) BIX max"), ncol = 2)
 
 DOM_surf_maxdepth_BPs
 
-#ggsave("../Figures/DOM_surf_bot_BPs.png", DOM_surf_maxdepth_BPs, height = 8, width = 8, units = "in")
+# ggsave("../Figures/DOM_surf_bot_BPs.png", DOM_surf_maxdepth_BPs, height = 8, width = 9, units = "in")
 
 
 ```
@@ -583,8 +673,7 @@ NO3 all depths
 
 ```{r}
 ####NO3
-no3_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "NO3_zs", response_var_label = "NO3 (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+no3_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "NO3_zs", response_var_label = "NO3 \n (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 no3_zt_break$plot
 no3_zt_break$davies_test
@@ -593,6 +682,27 @@ no3_zt_break$segmented_slopes
 
 
 ```
+
+
+Make SI figure for NO3 and other DOM breakpoints
+
+```{r}
+DOM_NO3_SI_break_plots <- 
+  cowplot::plot_grid( AT_zt_break$plot, SUVA_zt_break$plot,
+                      hix_zt_break$plot,  no3_zt_break$plot, 
+                                     labels = c("a", "b", "c", "d"), ncol = 1)
+
+DOM_NO3_SI_break_plots
+
+# ggsave("../Figures/DOM_NO3_SI_BP.png", DOM_NO3_SI_break_plots, height = 9, width = 9, units = "in")
+
+
+
+```
+
+
+
+
 
 NO3 and chla surface
 
@@ -638,14 +748,14 @@ chla_break_plots
 ## regressions to sensors
 
 ```{r}
-chem_bp |> 
-  mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
-         Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
-         Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),
-         Site_Type = ifelse(Site_code %in% c("P1", "P2"), "Pelagic", Site_Type)
-         ) |> 
-  ggplot(aes(x = SpCond_uScm, y = BIX, shape = Site_Type, color = Date))+
-  geom_point()
+# chem_bp |> 
+#   mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
+#          Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
+#          Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),
+#          Site_Type = ifelse(Site_code %in% c("P1", "P2"), "Pelagic", Site_Type)
+#          ) |> 
+#   ggplot(aes(x = SpCond_uScm, y = BIX, shape = Site_Type, color = Date))+
+#   geom_point()
 
 
 
