@@ -23,14 +23,14 @@ chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")
 ## SI figure of chem variables by date
 
 ```{r}
-levels <- c("DOC_mgL", "BIX", "HIX", "NO3NO2_ugL", "D_excess")
+levels <- c("DOC_mgL", "BIX", "HIX")
 
 levels_db <- c("22 May", "19 Jun", "11 Jul", "14 Aug", "16 Sep", 
                "30 Sep", "28 Oct", "17 Dec", "26 Feb", "16 Apr")
 
 #By dates
 Chem_by_date_SI_fig <- chem |> 
-  pivot_longer(-c(1:8)) |>  
+  pivot_longer(-c(1:7)) |>  
   # filter(!Site %in% c(50,88,90)) |> #if wanting to zoom in on S1 - C1 transition
   filter(name %in% levels) |> 
   mutate(Date1 = format(Date, "%d %b")) |> 
@@ -50,7 +50,7 @@ Chem_by_date_SI_fig <- chem |>
 
 Chem_by_date_SI_fig
 
-# ggsave("../Figures/Chem_by_Date_SI.png", height = 8, width = 11, units = "in")
+# ggsave("../Figures/Chem_by_Date_SI.png", Chem_by_date_SI_fig, height = 8, width = 11, units = "in")
 
 
 ```
