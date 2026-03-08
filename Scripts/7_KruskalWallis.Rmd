@@ -334,6 +334,8 @@ DOM_boxplots_MS
 ```
 
 
+
+
 ## Nutrients, chla, Isotopes boxplots
 
 ```{r}
@@ -367,7 +369,25 @@ ggsave("../Figures/NutChla_boxplot_SI.png", nutrient_chla_boxplots_SI, height = 
 
 ```
 
+## KW stats
 
+```{r}
+
+doc_kw$kruskal
+
+bix_kw$kruskal
+  
+hix_kw$kruskal
+
+AT_kw$kruskal
+
+suva_kw$kruskal
+  
+no3_kw$kruskal
+
+chla_kw$kruskal
+  
+```
 
 
 
