@@ -747,6 +747,39 @@ chla_break_plots
 
 ## regressions to sensors
 
+CQ plot
+
+```{r}
+#get flowmate data
+sampling_dates <- c(ymd("2024-05-22"), ymd("2024-06-19"), ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
+                    ymd("2024-09-30"), ymd("2024-10-28"), ymd("2024-12-17"), ymd("2025-02-26"), ymd("2025-04-16"))
+
+flowmate_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/454/9/0e7fe16623a1ad2a67774c23ce8a29d8")
+
+hpb_flowmate <- flowmate_edi |> 
+  mutate(Date = as.Date(DateTime)) |> 
+  filter(Date %in% sampling_dates) |> 
+  dplyr::select(Date, Flow_cms)
+
+```
+
+
+```{r}
+chem_bp |> left_join(hpb_flowmate, by = "Date") |> 
+  filter(Site_code == "S1") |> 
+  dplyr::select(Date, Flow_cms, DOC_mgL, BIX, HIX, NO3NO2_ugL ) |> 
+  pivot_longer(-c(1:2)) |> 
+  ggplot(aes(x = Flow_cms, y = value, color = Date))+
+  geom_point()+
+  facet_wrap(~name, scales = "free_y")+
+  theme_bw()
+
+
+```
+
+
+
+
 ```{r}
 # chem_bp |> 
 #   mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
