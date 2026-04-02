@@ -60,8 +60,8 @@ ctd_EDI_ccr_trim <- ctd_EDI |>
   mutate(Date = as.Date(DateTime)) |> 
   select(Reservoir, Site, Date, everything()) |> 
   filter(Reservoir == "CCR") |> 
-  filter(Date %in% sampling_dates) |> 
-  filter(SpCond_uScm < 150) #reomvoe values where sensors was in sediments
+  filter(Date %in% sampling_dates) |>
+  filter(SpCond_uScm < 140) #reomvoe values where sensors was in sediments
 
 
 ccr_ctd <- ccr_ctd_clean(ctd_EDI_ccr_trim)
@@ -83,6 +83,69 @@ ccr_ctd |>
   scale_y_reverse()+
   facet_grid(Site~Date, scales = "free_y")+
   theme_bw()
+
+# QAQC spcond spikes from the CTD
+
+# try to take out the conductivity spikes. DWH you can see what you think and take this out or not. 
+
+# make a table of the mean for all the casts for each date at each site
+
+spcond_mean <- ccr_ctd|>
+  group_by(Date, Site)|>
+  summarise(spcond_mean = mean(SpCond_uScm, na.rm = T),
+            spcond_sd = 1*sd(SpCond_uScm, na.rm = T)) # made this 1 sd but it can be 2
+
+# make a data frame with the mean and sd
+
+check_ccr_cond <- ccr_ctd|>
+  select(Reservoir, Site, Date, DateTime, Depth_m, Temp_C, SpCond_uScm)|>
+  left_join(spcond_mean, keep = F)
+
+
+  # Create the observation column, the lagging column and the leading column
+  check_ccr_cond2 <- check_ccr_cond|>
+  arrange(Date, Site, Depth_m)|>
+  mutate(var = lag(SpCond_uScm,0),
+         lag = lag(SpCond_uScm, 1),
+         lead = lead(SpCond_uScm, 1),
+         lag = ifelse(Depth_m == 0.1, NA, lag))
+  
+  
+  # If the leading or lagging value is above the threshold set above. 
+  
+  check_ccr_cond2[c(which((abs(check_ccr_cond2$lag - check_ccr_cond2$var) > check_ccr_cond2$spcond_sd) |
+                    (abs(check_ccr_cond2$lead - check_ccr_cond2$var) > check_ccr_cond2$SpCond_uScm)&!is.na(check_ccr_cond2$var))) , "SpCond_uScm"] <-NA
+  
+
+  # clean up and add cleaned up to the main data frame
+  
+  clean <- check_ccr_cond2|>
+    mutate(
+      SpCond_clean = SpCond_uScm
+    )|>
+    select(Date, Site, Depth_m, SpCond_clean)|>
+    arrange(Date, Site, Depth_m)
+  
+  # add to the old data frame
+  
+  ccr_ctd <- ccr_ctd|>
+    arrange(Date, Site, Depth_m)
+  
+  # add in the clean colunn to the data frame
+  ccr_ctd$clean_spcond <- clean$SpCond_clean
+  
+  ccr_ctd2 <- ccr_ctd|>
+    select(-SpCond_uScm)|> # replace the old column with the clean one
+    dplyr::rename(SpCond_uScm = clean_spcond)
+  
+  # check to see how the plots look
+  ccr_ctd |> 
+    ggplot(aes(x = SpCond_uScm, y = Depth_m))+
+    geom_line(orientation = "y")+
+    geom_point()+
+    scale_y_reverse()+
+    facet_grid(Site~Date, scales = "free_y")+
+    theme_bw()
 
 
 #### bind YSI to CTD and write csv ####
