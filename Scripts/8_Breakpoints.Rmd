@@ -117,7 +117,8 @@ run_breakpoint_analysis <- function(df,
                                     fill_var = NULL,
                                     fill_var_label = NULL,
                                     title = NULL,
-                                    depth_shape = FALSE  # TRUE/FALSE to map Depth_bins to shape
+                                    depth_shape = FALSE,  # TRUE/FALSE to map Depth_bins to shape
+                                    jitter_width = NULL   # NULL = no jitter, numeric = jitter width
                                     ) {
   
   # Fit linear model
@@ -134,8 +135,8 @@ run_breakpoint_analysis <- function(df,
   dist_gradient$fit <- predict(my.seg, newdata = dist_gradient)
   
   # Breakpoint + SE
-  my.lines <- my.seg$psi[, 2]
-  my.lines.SE <- my.seg$psi[, 3]
+  my.lines     <- my.seg$psi[, 2]
+  my.lines.SE  <- my.seg$psi[, 3]
   
   # Build base plot
   p <- df |>
@@ -151,18 +152,22 @@ run_breakpoint_analysis <- function(df,
   
   # Conditionally map shape to Depth_bins or use fixed shape
   if (depth_shape) {
-    p <- p +
-      geom_point(aes(shape = Depth_bins), size = 4) +
-            scale_shape_manual(
-        values = c("0.1" = 21, "Int" = 22, "BOT" = 24),
-        limits = c("0.1", "Int", "BOT"),
-        name = "Depth"
-      )
+    if (!is.null(jitter_width)) {
+      p <- p + geom_jitter(aes(shape = Depth_bins), size = 4, width = jitter_width)
+    } else {
+      p <- p + geom_point(aes(shape = Depth_bins), size = 4)
+    }
+    p <- p + scale_shape_manual(
+      values = c("0.1" = 21, "Int" = 22, "BOT" = 24),
+      limits = c("0.1", "Int", "BOT"),
+      name = "Depth"
+    )
   } else {
-    p <- p +
-      geom_point(shape = 21, size = 4)
-      #geom_jitter(shape = 21, size = 4, width = 20)
-    
+    if (!is.null(jitter_width)) {
+      p <- p + geom_jitter(shape = 21, size = 4, width = jitter_width)
+    } else {
+      p <- p + geom_point(shape = 21, size = 4)
+    }
   }
   
   p <- p +
@@ -173,7 +178,7 @@ run_breakpoint_analysis <- function(df,
       fill = fill_var_label
     ) +
     scale_x_continuous(breaks = c(0, 500, 1000, 1500)) +
-     geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
+    geom_vline(xintercept = my.lines, linetype = "dashed", size = 1.5) +
     geom_line(
       data = dist_gradient,
       aes(x = Distance, y = fit),
@@ -196,8 +201,9 @@ run_breakpoint_analysis <- function(df,
       legend.background = element_blank(),
       legend.box.background = element_blank()
     )
-  #change fill color ramp for filling by Depth vs other variables
-    if (fill_var == "Depth_m") {
+
+  # Change fill color ramp for filling by Depth vs other variables
+  if (fill_var == "Depth_m") {
     p <- p + scale_fill_gradient2(
       low = "red", high = "blue",
       midpoint = 6, guide = "colourbar",
@@ -213,7 +219,7 @@ run_breakpoint_analysis <- function(df,
     segmented_slopes = slope(my.seg),
     davies_test = davies
   )
-} # end of function
+} # end of function 
 
 
 ```
@@ -223,6 +229,14 @@ test that function is working, can toggle on and off inputs below
 ```{r}
 run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX", title = "BIX function test",
                                         fill_var = "SpCond_uScm", fill_var_label = "Sp Cond", depth_shape = F)
+
+run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX", title = "BIX function test",
+                                        fill_var = "SpCond_uScm", fill_var_label = "Sp Cond", 
+                        jitter_width = 10 ,  depth_shape = F)
+
+run_breakpoint_analysis(chem_bp, response_var = "BIX", response_var_label = "BIX", title = "BIX function test",
+                                        fill_var = "SpCond_uScm", fill_var_label = "Sp Cond", 
+                        jitter_width = 10 ,  depth_shape = T)
 
 
 ```
@@ -242,14 +256,15 @@ temp_break$plot
 temp_break$davies_test
 
 ## Cond
-SC_break <- run_breakpoint_analysis(chem_bp, response_var = "SpCond_uScm", response_var_label = "SC",
+SC_break <- run_breakpoint_analysis(chem_bp, response_var = "SpCond_uScm", 
+                                    response_var_label = expression(paste("SC (",mu,"S/cm)")),
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 SC_break$plot
 SC_break$davies_test
 
 ## DO
-DO_break <- run_breakpoint_analysis(chem_bp, response_var = "DOsat_percent", response_var_label = "DOsat",
+DO_break <- run_breakpoint_analysis(chem_bp, response_var = "DOsat_percent", response_var_label = "DO (% sat)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 DO_break$plot
@@ -257,7 +272,7 @@ DO_break$davies_test
 
 
 ## d-excess
-Dexcess_break <- run_breakpoint_analysis(chem_bp, response_var = "D_excess", response_var_label = "d-excess",
+Dexcess_break <- run_breakpoint_analysis(chem_bp, response_var = "D_excess", response_var_label = "d-excess (\u2030)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 Dexcess_break$plot
@@ -277,7 +292,9 @@ Z score SC and dexcess for main MS
 ```{r}
 
 ## Cond
-SC_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "SC_zs", response_var_label = "SC (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
+SC_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "SC_zs", response_var_label = "SC (z-score)", 
+                                       jitter_width = 10,
+                                       fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 SC_zs_break$plot
 SC_zs_break$davies_test
@@ -287,7 +304,9 @@ SC_zs_break$segmented_slopes
 
 
 ## d-excess
-Dexcess_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "dexcess_zs", response_var_label = "d-excess (z-score)",fill_var = "Depth_m", fill_var_label = "Depth (m)")
+Dexcess_zs_break <- run_breakpoint_analysis(chem_bp, response_var = "dexcess_zs",
+                                            jitter_width = 10,
+                                            response_var_label = "d-excess (z-score)",fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 Dexcess_zs_break$plot
 Dexcess_zs_break$davies_test
@@ -368,7 +387,8 @@ Plunge vs No plunge BP's
 plungedays_df <- chem_bp |> 
   filter(Date %in% plungedays)
 
-SC_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "SpCond_uScm", response_var_label = "SC",
+SC_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "SpCond_uScm", 
+                                           response_var_label = expression(paste("SC (",mu,"S/cm)")),
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Plunge Days")
 
 SC_break_plunge$davies_test
@@ -377,7 +397,8 @@ SC_break_plunge$davies_test
 noplungedays_df <- chem_bp |> 
   filter(Date %in% nonplungedays)
 
-SC_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "SpCond_uScm", response_var_label = "SC",
+SC_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "SpCond_uScm", 
+                                             response_var_label = expression(paste("SC (",mu,"S/cm)")),
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Non Plunge Days")
 
 SC_break_plungeno$davies_test
@@ -386,13 +407,15 @@ SC_break_plunge$plot / SC_break_plungeno$plot
 
 
 ##D-excess
-Dexcess_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "D_excess", response_var_label = "d-excess",
+Dexcess_break_plunge <- run_breakpoint_analysis(plungedays_df, response_var = "D_excess", 
+                                                response_var_label = "d-excess (\u2030)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Plunge Days")
 
 Dexcess_break_plunge$davies_test
 
 
-Dexcess_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "D_excess", response_var_label = "d-excess",
+Dexcess_break_plungeno <- run_breakpoint_analysis(noplungedays_df, response_var = "D_excess", 
+                                                  response_var_label = "d-excess (\u2030)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Non Plunge Days")
 
 Dexcess_break_plungeno$davies_test
@@ -409,7 +432,8 @@ Dry vs Wet BP's
 drystream_df <- chem_bp |> 
   filter(Date %in% dry_stream_days)
 
-SC_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "SpCond_uScm", response_var_label = "SC",
+SC_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "SpCond_uScm",
+                                        response_var_label = expression(paste("SC (",mu,"S/cm)")),
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Dry Stream Days")
 
 SC_break_dry$davies_test
@@ -418,7 +442,8 @@ SC_break_dry$davies_test
 wetstream_df <- chem_bp |> 
   filter(Date %in% wet_stream_days)
 
-SC_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "SpCond_uScm", response_var_label = "SC",
+SC_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "SpCond_uScm",
+                                        response_var_label = expression(paste("SC (",mu,"S/cm)")),
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Connected Stream Days")
 
 SC_break_wet$davies_test
@@ -427,10 +452,12 @@ SC_break_dry$plot / SC_break_wet$plot
 
 
 ##D-excess
-D_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "D_excess", response_var_label = "d-excess",
+D_break_dry <- run_breakpoint_analysis(drystream_df, response_var = "D_excess", 
+                                       response_var_label = "d-excess (\u2030)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Dry Stream Days")
 
-D_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "D_excess", response_var_label = "d-excess",
+D_break_wet <- run_breakpoint_analysis(wetstream_df, response_var = "D_excess",
+                                       response_var_label = "d-excess (\u2030)",
                                     fill_var = "Depth_m", fill_var_label = "Depth (m)", title = "Connected Stream Days")
 
 D_break_dry$plot / D_break_wet$plot
@@ -488,6 +515,7 @@ across all samples
 
 #### DOC
 doc_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "DOC_zs", response_var_label = "DOC (z-score)",
+                                        jitter_width = 10,
                                         fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 doc_zt_break$plot
@@ -498,6 +526,7 @@ doc_zt_break$segmented_slopes
 #### BIX
 
 bix_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+                                        jitter_width = 10,
                                         fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 bix_zt_break$plot
@@ -506,14 +535,16 @@ bix_zt_break$segmented_summary
 bix_zt_break$segmented_slopes
 
 #### HIX
-hix_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "HIX_zs", response_var_label = "HIX \n (z-score)",  fill_var = "Depth_m", fill_var_label = "Depth (m)")
+hix_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "HIX_zs", response_var_label = "HIX \n (z-score)",  
+                                        jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 hix_zt_break$davies_test
 hix_zt_break$segmented_summary
 hix_zt_break$segmented_slopes
 
 
 #### AT
-AT_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "AT_zs", response_var_label = "Peak A:T \n (z-score)",  fill_var = "Depth_m", fill_var_label = "Depth (m)")
+AT_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "AT_zs", response_var_label = "Peak A:T \n (z-score)", 
+                                       jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 AT_zt_break$davies_test
 AT_zt_break$segmented_summary
 AT_zt_break$segmented_slopes
@@ -521,7 +552,8 @@ AT_zt_break$segmented_slopes
 
 
 #### SUVA
-SUVA_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "SUVA254_zs", response_var_label = "SUVA254 \n (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
+SUVA_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "SUVA254_zs", response_var_label = "SUVA254 \n (z-score)",
+                                         jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 SUVA_zt_break$davies_test
 SUVA_zt_break$segmented_summary
 SUVA_zt_break$segmented_slopes
@@ -554,24 +586,23 @@ BP_ms <- cowplot::plot_grid(SC_zs_break$plot, Dexcess_zs_break$plot ,
 
 ```{r}
 
-#stack
-library(patchwork)
-# DWH - bix_break doesn't exist. 
-SC_break$plot / Dexcess_break$plot / bix_break$plot / doc_break$plot
-
-#bix other fills
-bix_zt_break_sc <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
-                                      fill_var = "SpCond_uScm", fill_var_label = "SpCond")
-
-bix_zt_break_dexcess <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
-                                      fill_var = "D_excess", fill_var_label = "d-excess")
-
-bix_zt_break_stage <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
-                                      fill_var = "HPB_stage_cm", fill_var_label = "stream stage")
-
-bix_bp_colorrampling <- (bix_zt_break$plot / bix_zt_break_sc$plot) | (bix_zt_break_dexcess$plot / bix_zt_break_stage$plot)
-
-# ggsave("../Figures/BIX_BPs_colorramps.png", bix_bp_colorrampling, height = 8, width = 9, units = "in")
+# #stack
+# library(patchwork)
+# 
+# #bix other fills
+# bix_zt_break_sc <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+#                                       fill_var = "SpCond_uScm", fill_var_label = "SpCond")
+# 
+# bix_zt_break_dexcess <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+#                                       fill_var = "D_excess", fill_var_label = "d-excess")
+# 
+# bix_zt_break_stage <- run_breakpoint_analysis(chem_bp, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
+#                                       fill_var = "HPB_stage_cm", fill_var_label = "stream stage")
+# 
+# bix_bp_colorrampling <- (bix_zt_break$plot / bix_zt_break_sc$plot) | (bix_zt_break_dexcess$plot / bix_zt_break_stage$plot)
+# 
+# bix_bp_colorrampling
+# # ggsave("../Figures/BIX_BPs_colorramps.png", bix_bp_colorrampling, height = 8, width = 9, units = "in")
 
 
 
@@ -606,14 +637,14 @@ BIX breakpoints: all depths, surface, bottom To interpret stats outputs its easi
 
 ## BIX surface
 bix_zt_surf_break <- run_breakpoint_analysis(chem_surf, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                        jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 bix_zt_surf_break$davies_test
 bix_zt_surf_break$segmented_summary
 bix_zt_surf_break$segmented_slopes
 
 ## BIX BOT
 bix_zt_bot_break <- run_breakpoint_analysis(chem_maxdepth, response_var = "BIX_zs", response_var_label = "BIX (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                        jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 bix_zt_bot_break$davies_test
 bix_zt_bot_break$segmented_summary
 bix_zt_bot_break$segmented_slopes
@@ -632,14 +663,14 @@ DOC breakpoints: all depths, surface, bottom
 
 ## DOC surface
 doc_zt_surf_break <- run_breakpoint_analysis(chem_surf, response_var = "DOC_zs", response_var_label = "DOC (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                       jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 doc_zt_surf_break$davies_test
 doc_zt_surf_break$segmented_summary
 doc_zt_surf_break$segmented_slopes
 
 ## DOC BOT
 doc_zt_bot_break <- run_breakpoint_analysis(chem_maxdepth, response_var = "DOC_zs", response_var_label = "DOC (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                        jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 doc_zt_bot_break$davies_test
 doc_zt_bot_break$segmented_summary
 doc_zt_bot_break$segmented_slopes
@@ -674,7 +705,8 @@ NO3 all depths
 
 ```{r}
 ####NO3
-no3_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "NO3_zs", response_var_label = "NO3 \n (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
+no3_zt_break <- run_breakpoint_analysis(chem_bp, response_var = "NO3_zs", jitter_width = 10,
+                                        response_var_label = "NO3 \n (z-score)", fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 no3_zt_break$plot
 no3_zt_break$davies_test
@@ -710,7 +742,7 @@ NO3 and chla surface
 ```{r}
 #### NO3 surface
 no3_zt_break_surf <- run_breakpoint_analysis(chem_surf, response_var = "NO3_zs", response_var_label = "NO3 (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                       jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 no3_zt_break_surf$plot
 no3_zt_break_surf$davies_test
@@ -720,7 +752,7 @@ no3_zt_break_surf$segmented_slopes
 
 #### chla surface
 chla_zt_break_surf <- run_breakpoint_analysis(chem_surf, response_var = "Chla_zs", response_var_label = "Chl-a (z-score)",
-                                        fill_var = "Depth_m", fill_var_label = "Depth (m)")
+                                       jitter_width = 10, fill_var = "Depth_m", fill_var_label = "Depth (m)")
 
 chla_zt_break_surf$plot
 chla_zt_break_surf$davies_test
@@ -736,7 +768,7 @@ chla_break_plots <- cowplot::plot_grid(no3_zt_break_surf$plot, chla_zt_break_sur
 
 chla_break_plots
 
-#ggsave("../Figures/Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
+# ggsave("../Figures/Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
 
 
 
@@ -746,51 +778,3 @@ chla_break_plots
 
 
 
-## regressions to sensors
-
-CQ plot
-
-```{r}
-#get flowmate data
-sampling_dates <- c(ymd("2024-05-22"), ymd("2024-06-19"), ymd("2024-07-11"), ymd("2024-08-14"), ymd("2024-09-16"),
-                    ymd("2024-09-30"), ymd("2024-10-28"), ymd("2024-12-17"), ymd("2025-02-26"), ymd("2025-04-16"))
-
-flowmate_edi <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/454/9/0e7fe16623a1ad2a67774c23ce8a29d8")
-
-hpb_flowmate <- flowmate_edi |> 
-  mutate(Date = as.Date(DateTime)) |> 
-  filter(Date %in% sampling_dates) |> 
-  dplyr::select(Date, Flow_cms)
-
-```
-
-
-```{r}
-chem_bp |> left_join(hpb_flowmate, by = "Date") |> 
-  filter(Site_code == "S1") |> 
-  dplyr::select(Date, Flow_cms, DOC_mgL, BIX, HIX, NO3NO2_ugL ) |> 
-  pivot_longer(-c(1:2)) |> 
-  ggplot(aes(x = Flow_cms, y = value, color = Date))+
-  geom_point()+
-  facet_wrap(~name, scales = "free_y")+
-  theme_bw()
-
-
-```
-
-
-
-
-```{r}
-# chem_bp |> 
-#   mutate(Site_Type = ifelse(Site_code %in% c("S1", "S2"), "Stream", NA),
-#          Site_Type = ifelse(Site_code %in% c("B1", "B2"), "Backwater", Site_Type),
-#          Site_Type = ifelse(Site_code %in% c("C1", "C2"), "Cove", Site_Type),
-#          Site_Type = ifelse(Site_code %in% c("P1", "P2"), "Pelagic", Site_Type)
-#          ) |> 
-#   ggplot(aes(x = SpCond_uScm, y = BIX, shape = Site_Type, color = Date))+
-#   geom_point()
-
-
-
-```

@@ -61,7 +61,8 @@ ctd_EDI_ccr_trim <- ctd_EDI |>
   select(Reservoir, Site, Date, everything()) |> 
   filter(Reservoir == "CCR") |> 
   filter(Date %in% sampling_dates) |>
-  filter(SpCond_uScm < 140) #reomvoe values where sensors was in sediments
+  filter(ifelse(Date == ymd("2025-02-26"), SpCond_uScm < 150, SpCond_uScm < 140)) #cond across profiles on feb 26 was higher than 140 so clean this up to jsut catch obvious sediment outliers at bottom (See following plots)
+
 
 
 ccr_ctd <- ccr_ctd_clean(ctd_EDI_ccr_trim)

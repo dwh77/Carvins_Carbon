@@ -207,7 +207,7 @@ hpb_regress_timeseries | hpb_GAM_vs_observed
 
 HPB_regress_SI_fig <- cowplot::plot_grid(hpb_regress_timeseries, hpb_GAM_vs_observed, labels = c("a", "b"), ncol = 2)
 
- # ggsave("./Figures/hpb_gam_SI_figure.png", HPB_regress_SI_fig, width = 6, height = 4, units = "in")
+# ggsave("./Figures/hpb_gam_SI_figure.png", HPB_regress_SI_fig, width = 6, height = 4, units = "in")
 
 
 

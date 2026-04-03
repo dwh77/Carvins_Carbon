@@ -22,8 +22,3 @@ install.packages('cowplot')
 install.packages('patchwork')
 
 
-
-#from heatmaps
-# pacman::p_load(tidyverse, lubridate, akima, reshape2, 
-#                gridExtra, grid, colorRamps, RColorBrewer, cowplot)
-#for thermocline calcs; rLakeAnalyzer

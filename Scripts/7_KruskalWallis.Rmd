@@ -341,19 +341,23 @@ DOM_boxplots_MS
 ```{r}
 #Make nice boxplots of nutrients and chla for SI 
 ##NO3
-no3_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NO3NO2_ugL", response_var_label = "NO3 (ug/L)")
+no3_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NO3NO2_ugL", 
+                                 response_var_label = expression(paste("NO3 (",mu,"g/L)")))
 no3_kw$kruskal
 
 ##NH4
-nh4_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NH4_ugL", response_var_label = "NH4 (ug/L)")
+nh4_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "NH4_ugL", 
+                                 response_var_label = expression(paste("NH4 (",mu,"g/L)")))
 nh4_kw$kruskal
 
 ##SRP
-srp_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "SRP_ugL", response_var_label = "SRP (ug/L)")
+srp_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "SRP_ugL", 
+                                 response_var_label = expression(paste("SRP (",mu,"g/L)")))
 srp_kw$kruskal
 
 ##Chl-a
-chla_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "Chla_ugL", response_var_label = "Chl-a (ug/L)")
+chla_kw <- make_kruskal_dunn_plot(df = chem_kruskal, response_var = "Chla_ugL", 
+                                 response_var_label = expression(paste("chl-a (",mu,"g/L)")))
 chla_kw$kruskal
 
 
