@@ -136,7 +136,7 @@ s1_c1_do <- plot_sensors( df = sensors_filt,
 
 ## SC
 s1_c1_sc <- plot_sensors( df = sensors_filt,
-  fill_var = SpCond_uScm,  fill_var_label = "SC (uS/cm)",
+  fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
   Sites = c("S1", "S2", "B1", "B2", "C1"),  X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1)
 
 ## stack for SI
@@ -170,7 +170,7 @@ s1_p2_do <- plot_sensors(df = sensors_filt,
 
 ##SC
 s1_p2_sc <- plot_sensors(df = sensors_filt,
-  fill_var = SpCond_uScm,  fill_var_label = "SC (uS/cm)",
+  fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
   Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"), 
   X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2)
 
@@ -374,7 +374,7 @@ temp_SWF_s1_p2
 
 ## SC
 SC_SWF_s1_p2 <- plot_swf(df = SWF_data,
-                         fill_var = SpCond_uScm,  fill_var_label = "SC (uS/cm)",
+                         fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
                          Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
                           X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
                            show_depthlines = F)
