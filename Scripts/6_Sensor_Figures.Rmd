@@ -10,7 +10,6 @@ date: "2025-11-24"
 ```{r}
 #packages 
 library(tidyverse)
-library(rLakeAnalyzer) #water.density
 
 #read in data
 sensors <- read_csv("../Data/sensors_joined.csv") 
@@ -52,7 +51,7 @@ x_breaks_list_S1_C1 <- c(0, 150, 300)
 y_breaks_list_S1_C1 <- c(0, 0.5, 1, 1.5, 2, 2.5)
 
 #s1 to P2
-x_breaks_list_S1_P2 <- c(0, 500, 1000, 1500)
+x_breaks_list_S1_P2 <- c(0, 600, 1200)
 y_breaks_list_S1_P2 <- c(0, 3, 6, 9, 12, 15, 18, 21)
 
 
@@ -68,14 +67,17 @@ y_breaks_list_S1_P2 <- c(0, 3, 6, 9, 12, 15, 18, 21)
 ```{r}
 
 plot_sensors <- function(df,
-                     fill_var = NULL,       # variable to fill by
-                     fill_var_label = NULL, # what text to use for color ramp label
-                     Sites = NULL,          # sites to remove
-                     X_breaks = NULL,       # numeric vector
-                     Y_breaks = NULL       # numeric vector
+                     fill_var = NULL,
+                     fill_var_label = NULL,
+                     Sites = NULL,
+                     X_breaks = NULL,
+                     Y_breaks = NULL,
+                     point_outline = "black",    # any color or "transparent"
+                     show_depth_line = TRUE,      # brown max depth line
+                     show_water_line = TRUE       # blue y = 0 line
                      ) {     
   
-  df %>%
+  p <- df %>%
     filter(Site_code %in% Sites) %>%
     mutate(
       Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
@@ -83,14 +85,17 @@ plot_sensors <- function(df,
       Date1     = format(Date, "%d %b")
     ) %>%
     ggplot(aes(x = Distance, y = Depth_m, fill = {{ fill_var }} )) +
-      geom_hline(yintercept = 0, color = "blue") +
       geom_rect(aes(xmin = Dry_start, xmax = Dry_end,
                     ymin = -Inf, ymax = Inf),
-                alpha = 1, fill = "gray", color = NA) +
-      geom_line(aes(y = Max_Depth_Site_m + 0.1),
-                size = 1, color = "#654321") +
+                alpha = 1, fill = "gray", color = NA)
+
+  if (show_water_line) p <- p + geom_hline(yintercept = 0, color = "blue")
+  if (show_depth_line) p <- p + geom_line(aes(y = Max_Depth_Site_m + 0.1),
+                                           size = 1, color = "#654321")
+
+  p <- p +
+      geom_point(size = 3, shape = 21, color = point_outline) +
       facet_wrap(~factor(Date1, levels = levels_db), nrow = 1) +
-      geom_point(size = 3, shape = 21) +
       theme_bw() +
       theme(
         legend.position = "top",
@@ -108,8 +113,10 @@ plot_sensors <- function(df,
       scale_y_reverse(breaks = Y_breaks) +
       scale_x_continuous(breaks = X_breaks) +
       scale_fill_distiller(palette = "Spectral", direction = -1)
+
+  p
   
-} # end function
+} #end of function
 
 
 ```
@@ -139,11 +146,19 @@ s1_c1_sc <- plot_sensors( df = sensors_filt,
   fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
   Sites = c("S1", "S2", "B1", "B2", "C1"),  X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1)
 
-## stack for SI
+
+
+##### Temp and SC for main MS
+sensors_MS_S1_C1 <- cowplot::plot_grid(s1_c1_temp, s1_c1_sc, labels = c("a", "b"), ncol = 1)
+sensors_MS_S1_C1
+
+ggsave("../Figures/sensors_S1_C1_MS.png", sensors_MS_S1_C1, width = 10, height = 6, units = "in")
+
+
+
+#### stack for SI
 sensors_S1_C1 <- cowplot::plot_grid(s1_c1_temp, s1_c1_sc, s1_c1_do, labels = c("a", "b", "c"), ncol = 1)
-
 sensors_S1_C1
-
 #ggsave("../Figures/sensors_S1_C1_SIfig.png", sensors_S1_C1, width = 11, height = 8, units = "in")
 
 ```
@@ -160,19 +175,22 @@ s1_p2_temp <- plot_sensors(
   fill_var_label = "Temp (C)",
   Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
   X_breaks = x_breaks_list_S1_P2,
-  Y_breaks = y_breaks_list_S1_P2)
+  Y_breaks = y_breaks_list_S1_P2,
+  point_outline = "transparent", show_depth_line = F, show_water_line = F)
 
 ##DO
 s1_p2_do <- plot_sensors(df = sensors_filt,
   fill_var = DOsat_percent,  fill_var_label = "DO (%sat)",
   Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"), 
-  X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2)
+  X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,  
+  point_outline = "transparent", show_depth_line = F, show_water_line = F)
 
 ##SC
 s1_p2_sc <- plot_sensors(df = sensors_filt,
   fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
   Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"), 
-  X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2)
+  X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,  
+  point_outline = "transparent", show_depth_line = F, show_water_line = F)
 
 ## stack for SI
 sensors_S1_P2 <- cowplot::plot_grid(s1_p2_temp, s1_p2_sc, s1_p2_do, labels = c("a", "b", "c"), ncol = 1)
@@ -184,276 +202,17 @@ sensors_S1_P2
 ```
  
  
-
- 
- ----------------------------------- SWF --------------------------------------------------------
- 
- 
- 
- 
-## Calculate stream water fraction
+##some summary stats
 
 ```{r}
-#### calculate stream water fraction adapting methods from Eveleth et al. 2024
-##get mean reservoir conductivity by date and make a look up table
-Lake_lookup <- sensors_filt |> filter(Site %in% c(50)) |> dplyr::select(Date, SpCond_uScm) |> 
-  group_by(Date) |> 
-  summarise(Lake_SC = mean(SpCond_uScm, na.rm = T))
-
-##make lookup table for stream cond by sampling date
-S1_lookup <- sensors_filt |> filter(Site == 101) |> dplyr::select(Date, SpCond_uScm) |> 
-  rename(S1_SC = SpCond_uScm)
-
-
-##join look up tables to sensors df for plotting
-SWF_data <- sensors_filt |> 
-  #join data sets
-  left_join(S1_lookup, by = "Date") |> 
-  left_join(Lake_lookup, by = "Date") |> 
-  #Calc water density as well (just based on individual measures of water temp) for another metric
-  mutate(density = water.density(Temp_C)) |>
-  #Calc stream water fraction
-  mutate(SWF = (SpCond_uScm - Lake_SC) / (S1_SC - Lake_SC) ) 
-  
-
-
-```
- 
- 
-## Function to plot SWF 
-
-```{r}
-
-plot_swf <- function(df,
-                     fill_var = NULL,       # variable to fill by
-                     fill_var_label = NULL, # what text to use for color ramp label
-                     Sites = NULL,          # sites to remove
-                     size_var = SWF,            #what variable to make the size by
-                     size_var_label = "SWF", # what text to use for color ramp label
-                     X_breaks = NULL,       # numeric vector
-                     Y_breaks = NULL,       # numeric vector
-                     show_depthlines = TRUE,   # toggle blue hline + brown geom_line
-                     nrow = 1
-                      ) {
-  
-  p <- df %>%
-    filter(Site_code %in% Sites) %>%
-    mutate(
-      Dry_start = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_start, NA),
-      Dry_end   = ifelse(Depth_m == 0.1 & Site_code == "S1", Dry_end, NA),
-      Date1     = format(Date, "%d %b")
-    ) %>%
-    ggplot(aes(x = Distance, y = Depth_m, fill = {{ fill_var }}, size = {{ size_var }}))
-  
-  if (show_depthlines) {
-    p <- p + geom_hline(yintercept = 0, color = "blue")
-  }
-  
-  p <- p +
-    geom_rect(aes(xmin = Dry_start, xmax = Dry_end,
-                  ymin = -Inf, ymax = Inf),
-              alpha = 1, fill = "gray", color = NA,
-              show.legend = FALSE) #show.legend = F fixes gray boxes behind SWF legend
-  
-  if (show_depthlines) {
-    p <- p + geom_line(aes(y = Max_Depth_Site_m + 0.1), size = 1, color = "#654321")
-  }
-  
-  p <- p +
-    facet_wrap(~factor(Date1, levels = levels_db), nrow = nrow) +
-    geom_point(shape = 21) +
-    theme_bw() +
-    theme(
-      legend.position = "top",
-      text = element_text(size = 14),
-      # legend.text = element_text(size = 10),
-      # legend.title = element_text(size = 10),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank()
-    ) +
-    labs(
-      x = "Distance from Stream (m)",
-      y = "Depth (m)",
-      fill = fill_var_label, 
-      size = size_var_label,
-    ) +
-    scale_y_reverse(breaks = Y_breaks) +
-    scale_x_continuous(breaks = X_breaks) +
-    scale_fill_distiller(palette = "Spectral", direction = -1)
-  
-  return(p)
-  
-} # end function
-
-
-```
- 
- 
- 
-## Make plots of SWF for sites S1 to C1
-
-```{r}
-## look at density
-plot_swf(df = SWF_data,
-                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
-                           Sites = c("S1", "S2", "B1", "B2", "C1"),
-         size_var = density, size_var_label = "Density (kg/m3)",
-                           X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1,
-                           show_depthlines = TRUE)
-
-
-
-#### SWF
-
-## TEMP
-temp_SWF_s1_c1 <- plot_swf(df = SWF_data,
-                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
-                           Sites = c("S1", "S2", "B1", "B2", "C1"),
-                           X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1,
-                           show_depthlines = TRUE, nrow = 2)
-
-temp_SWF_s1_c1
-
-# ggsave("../Figures/Temp_SWF_S1_C1_fig.png", temp_SWF_s1_c1, width = 8, height = 6, units = "in")
-
-
-# ## SC
-# SC_SWF_s1_c1 <- plot_swf(df = SWF_data,
-#                          fill_var = SpCond_uScm,  fill_var_label = "SC (uS/cm)",
-#                          Sites = c("S1", "S2", "B1", "B2", "C1"),
-#                          X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1,
-#                          show_depthlines = TRUE)
-# 
-# SC_SWF_s1_c1
-# 
-# ## DO
-# DO_SWF_s1_c1 <- plot_swf( df = SWF_data,
-#                           fill_var = DOsat_percent,  fill_var_label = "DO (%sat)",
-#                           Sites = c("S1", "S2", "B1", "B2", "C1"),
-#                           X_breaks = x_breaks_list_S1_C1,  Y_breaks = y_breaks_list_S1_C1,
-#                            show_depthlines = TRUE)
-# 
-# DO_SWF_s1_c1
-# 
-# ##stack plots
-# 
-# sensors_SWF_S1_C1 <- cowplot::plot_grid(temp_SWF_s1_c1, SC_SWF_s1_c1, DO_SWF_s1_c1, labels = c("a", "b", "c"), ncol = 1)
-# 
-# sensors_SWF_S1_C1
-# 
-# #ggsave("../Figures/sensors_SWF_S1_C1_fig.png", sensors_SWF_S1_C1, width = 11, height = 8, units = "in")
-
-
+sensors_filt |> group_by(Site) |> 
+  summarise(DO_min = min(DOsat_percent),
+            SC_mean = mean(SpCond_uScm),
+            SC_min = min(SpCond_uScm),
+            SC_max = max(SpCond_uScm))
 ```
 
 
 
-## Make plots of SWF for sites S1 to P2
-
-```{r}
-## look at density
-plot_swf(df = SWF_data,
-                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
-                           Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
-         size_var = density, size_var_label = "Density (kg/m3)",
-                          X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
-                           show_depthlines = TRUE)
 
 
-
-#### SWF
-
-## TEMP
-temp_SWF_s1_p2 <- plot_swf(df = SWF_data,
-                           fill_var = Temp_C,  fill_var_label = "Temp (C)",
-                           Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
-                          X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
-                           show_depthlines = F)
-
-temp_SWF_s1_p2
-
-## SC
-SC_SWF_s1_p2 <- plot_swf(df = SWF_data,
-                         fill_var = SpCond_uScm,  fill_var_label = expression(paste("SC (",mu,"S/cm)")),
-                         Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
-                          X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
-                           show_depthlines = F)
-
-SC_SWF_s1_p2
-
-## DO
-DO_SWF_s1_p2 <- plot_swf( df = SWF_data,
-                          fill_var = DOsat_percent,  fill_var_label = "DO (%sat)",
-                          Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
-                          X_breaks = x_breaks_list_S1_P2,  Y_breaks = y_breaks_list_S1_P2,
-                           show_depthlines = F)
-
-DO_SWF_s1_p2
-
-
-```
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-## SWF using d-excess
-same approach as above but now d-excess instead of SC
-```{r}
-
-# ## read in chem data
-# chem <- read_csv("../Data/chemistry_joined_sensor_hydro.csv")
-# 
-# #### calculate stream water fraction adapting methods from Eveleth et al. 2024
-# ##get mean reservoir d-excess by date and make a look up table
-# Lake_d_lookup <- chem |> filter(Site %in% c(50)) |> dplyr::select(Date, D_excess) |> 
-#   group_by(Date) |> 
-#   summarise(Lake_d_excess = mean(D_excess, na.rm = T))
-# 
-# ##make lookup table for stream cond by sampling date
-# S1_d_lookup <- chem |> filter(Site == 101) |> dplyr::select(Date, D_excess) |> 
-#   rename(S1_d_excess = D_excess)
-# 
-# 
-# ##join look up tables to sensors df for plotting
-# SWF_Dexcess_data <- chem |> 
-#   #join data sets
-#   left_join(S1_d_lookup, by = "Date") |> 
-#   left_join(Lake_d_lookup, by = "Date") |> 
-#   #Calc stream water fraction
-#   mutate(SWF = (D_excess - Lake_d_excess) / (S1_d_excess - Lake_d_excess) ) 
-
-```
-
-
-look at data
-```{r}
-
-#  plot_swf(
-#   df = SWF_Dexcess_data,
-#   fill_var = D_excess,
-#   fill_var_label = "d-excess",
-#   Sites = c("S1", "S2", "B1", "B2", "C1", "C2", "P1", "P2"),
-#   X_breaks = x_breaks_list_S1_P2,
-#   Y_breaks = y_breaks_list_S1_P2
-# )
-
-```
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
