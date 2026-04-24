@@ -46,16 +46,19 @@ daily_rain |> ggplot(aes(x= Date, y = Daily_rain_mm))+geom_point()
 
 
 ########  HPB daily stage ####
-hpb_stage_STAGED <- read_csv("https://pasta-s.lternet.edu/package/data/eml/edi/1781/1/630f42ffb3560c3a6afd592511756c1e")
+hpb_stage_STAGED <- read_csv("https://pasta-s.lternet.edu/package/data/eml/edi/1781/12/630f42ffb3560c3a6afd592511756c1e")
 
 #get daily mean stage
 daily_stage <- hpb_stage_STAGED |> 
   mutate(Date = as.Date(DateTime)) |> 
   group_by(Date) |> 
-  summarise(Daily_Stage_cm = mean(Stage_cm, na.rm = T))
+  summarise(Daily_Stage_cm = mean(stage_cm, na.rm = T),
+            Daily_Q_cms = mean(Flow_cms, na.rm = T))
 
 #look at data
 daily_stage |> ggplot(aes(x= Date, y = Daily_Stage_cm))+geom_point()
+daily_stage |> ggplot(aes(x= Date, y = Daily_Q_cms))+geom_point()
+
 
 
 ########daily USGS stage and Q data from nearby stations ####
@@ -92,11 +95,11 @@ Qdata_forjoin <- Qdata |>
 stage_15min_dat <- readNWISuv(sitenos, stage, startDate, endDate) %>% 
   renameNWISColumns()
 
-#look at 15 min stage data
-stage_15min_dat |> 
-  ggplot(aes(x = dateTime, y = GH_Inst, col = site_no))+
-  geom_point()+
-  labs(title = "USGS gauges height: 15 min")
+# #look at 15 min stage data
+# stage_15min_dat |> 
+#   ggplot(aes(x = dateTime, y = GH_Inst, col = site_no))+
+#   geom_point()+
+#   labs(title = "USGS gauges height: 15 min")
 
 ## Get daily stage data
 stagedata_forjoin <- stage_15min_dat |> 
