@@ -39,7 +39,7 @@ ccr_catwalk_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/1069
 
 ccr_met_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/1105/4/8ebf27393ccafe518328468a260d2e18")
 
-hpb_stage_STAGED <- read_csv()
+hpb_stage_EDI <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/2333/1/630f42ffb3560c3a6afd592511756c1e")
 
 
 

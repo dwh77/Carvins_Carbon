@@ -45,11 +45,11 @@ daily_rain |> ggplot(aes(x= Date, y = Daily_rain_mm))+geom_point()
 
 
 
-########  HPB daily stage ####
-hpb_stage_STAGED <- read_csv("https://pasta-s.lternet.edu/package/data/eml/edi/1781/12/630f42ffb3560c3a6afd592511756c1e")
+########  HPB daily stage and Q ####
+hpb_stage <- read_csv("https://pasta.lternet.edu/package/data/eml/edi/2333/1/630f42ffb3560c3a6afd592511756c1e")
 
 #get daily mean stage
-daily_stage <- hpb_stage_STAGED |> 
+daily_stage <- hpb_stage |> 
   mutate(Date = as.Date(DateTime)) |> 
   group_by(Date) |> 
   summarise(Daily_Stage_cm = mean(stage_cm, na.rm = T),
