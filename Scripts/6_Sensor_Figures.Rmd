@@ -148,18 +148,10 @@ s1_c1_sc <- plot_sensors( df = sensors_filt,
 
 
 
-##### Temp and SC for main MS
-sensors_MS_S1_C1 <- cowplot::plot_grid(s1_c1_temp, s1_c1_sc, labels = c("a", "b"), ncol = 1)
-sensors_MS_S1_C1
-
-ggsave("../Figures/sensors_S1_C1_MS.png", sensors_MS_S1_C1, width = 10, height = 6, units = "in")
-
-
-
 #### stack for SI
 sensors_S1_C1 <- cowplot::plot_grid(s1_c1_temp, s1_c1_sc, s1_c1_do, labels = c("a", "b", "c"), ncol = 1)
 sensors_S1_C1
-#ggsave("../Figures/sensors_S1_C1_SIfig.png", sensors_S1_C1, width = 11, height = 8, units = "in")
+#ggsave("../Figures/FigS6_sensors_S1_C1.png", sensors_S1_C1, width = 11, height = 8, units = "in")
 
 ```
 
@@ -197,9 +189,24 @@ sensors_S1_P2 <- cowplot::plot_grid(s1_p2_temp, s1_p2_sc, s1_p2_do, labels = c("
 
 sensors_S1_P2
 
-#ggsave("../Figures/sensors_S1_P2_SIfig.png", sensors_S1_P2, width = 11, height = 8, units = "in")
+#ggsave("../Figures/figS5_sensors_S1_P2.png", sensors_S1_P2, width = 11, height = 8, units = "in")
 
 ```
+ 
+ 
+ 
+## Main MS figure
+
+```{r}
+##### Temp and SC for main MS
+MS_sensors <- cowplot::plot_grid(s1_p2_temp, s1_c1_temp, s1_c1_sc, labels = c("a", "b", "c"), ncol = 1)
+MS_sensors
+
+#ggsave("../Figures/Fig4_sensors.png", MS_sensors, width = 10, height = 8, units = "in")
+
+```
+
+ 
  
  
 ##some summary stats

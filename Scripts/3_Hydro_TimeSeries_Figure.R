@@ -73,10 +73,16 @@ Pred_obsLM_fig <- hydro_daily |>
   geom_point()+
   xlim(0,300)+
   stat_poly_line(method = "lm", linewidth = 2) +
-  stat_poly_eq(formula = y ~ x, label.x = "left", label.y = "top", parse = TRUE,
-               inherit.aes = FALSE, 
+  stat_poly_eq(formula = y ~ x, label.x = "left", label.y = 0.97, parse = TRUE,
+               inherit.aes = FALSE,
                aes(x = HPB_Ls_tinkerLM, y = HPB_Q_Ls,
-                   label = paste(..adj.rr.label.., ..p.value.label.., sep = "~~~"), size = 2)  )+
+                   label = ..adj.rr.label..),
+               size = 5) +
+  stat_poly_eq(formula = y ~ x, label.x = "left", label.y = 0.85, parse = TRUE,
+               inherit.aes = FALSE,
+               aes(x = HPB_Ls_tinkerLM, y = HPB_Q_Ls,
+                   label = gsub("P", "p", ..p.value.label..)),
+               size = 5) +
   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed", size = 1.2) +
   theme_bw() + labs(x = "HPB linear modeled discharge (L/s)", y = "HPB observed discharge (L/s)")
 
@@ -104,16 +110,8 @@ hpb_regress_timeseries | Pred_obsLM_fig
 
 HPB_regress_SI_fig <- cowplot::plot_grid(hpb_regress_timeseries, Pred_obsLM_fig, labels = c("a", "b"), ncol = 2)
 
-#ggsave("./Figures/hpb_lm_SI_figure.png", HPB_regress_SI_fig, width = 6, height = 4, units = "in")
+ggsave("./Figures/SIfig3_hpb_lm.png", HPB_regress_SI_fig, width = 6, height = 4, units = "in")
 
-
-
-
-
-
-
-  
-############################ MAKE SURE OLD CODE WORKS STILL
 
 
 ## write csv that has interpolated stage HPB
@@ -188,7 +186,7 @@ hydro_TS_fig <- cowplot::plot_grid(precip_fig, Q_fig, waterlevel_fig,
                                    labels = c("a", "b", "c"), nrow = 3)
 
 hydro_TS_fig
-# ggsave("./Figures/hydro_TS_figure_v2.png", hydro_TS_fig, width = 6, height = 7, units = "in")
+# ggsave("./Figures/Fig3_hydro_TS.png", hydro_TS_fig, width = 6, height = 7, units = "in")
 
 #interactive plots
 # plotly::ggplotly(waterlevel_fig) #For interactive plots

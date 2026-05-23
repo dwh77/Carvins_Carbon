@@ -45,7 +45,7 @@ isotopes_across_space_fig <- chem |>
 
 isotopes_across_space_fig
 
-# ggsave("../Figures/Iso_overSpace_SI_fig.png", isotopes_across_space_fig, width = 7, height = 3.5, units = "in")
+# ggsave("../Figures/FigS7_Iso_overSpace.png", isotopes_across_space_fig, width = 7, height = 3.5, units = "in")
 
 ```
 
@@ -245,7 +245,7 @@ iso_rain_surf <- plot_iso_ts(data = chem_df, hydro = hydro_df,
 
 iso_rain_surf
 
-# ggsave("../Figures/Iso_Rain_surf_MS_fig.png", iso_rain_surf, width = 6.5, height = 4, units = "in")
+# ggsave("../Figures/Fig5top_Iso_Rain_surf.png", iso_rain_surf, width = 6.5, height = 4, units = "in")
 
 
 
@@ -255,7 +255,7 @@ iso_rain_surfbot <- plot_iso_ts(data = chem_df, hydro = hydro_df,
                     show_rain = TRUE,  depths = c("0.1","BOT"))
 
 iso_rain_surfbot
-# ggsave("../Figures/Iso_Rain_surfBOT_SI_fig.png", iso_rain_surfbot, width = 6.5, height = 4, units = "in")
+# ggsave("../Figures/FigS8_Iso_Rain_surfBOT.png", iso_rain_surfbot, width = 6.5, height = 4, units = "in")
 
 
 
@@ -281,7 +281,7 @@ DOM_ts <- cowplot::plot_grid(doc_surf, bix_surf,
 
 DOM_ts
 
-#ggsave("../Figures/DOM_ts_SURF_SI.png", DOM_ts, height = 8, width = 6.5, units = "in")
+# ggsave("../Figures/FigS10_DOM_ts_SURF.png", DOM_ts, height = 8, width = 6.5, units = "in")
 
 ```
 

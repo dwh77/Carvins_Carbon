@@ -50,7 +50,7 @@ Chem_by_date_SI_fig <- chem |>
 
 Chem_by_date_SI_fig
 
-# ggsave("../Figures/Chem_by_Date_SI.png", Chem_by_date_SI_fig, height = 8, width = 11, units = "in")
+# ggsave("../Figures/FigS9_Chem_by_Date.png", Chem_by_date_SI_fig, height = 8, width = 11, units = "in")
 
 
 ```
@@ -328,7 +328,7 @@ DOM_boxplots_MS <- cowplot::plot_grid(doc_kw$plot, bix_kw$plot, hix_kw$plot, AT_
 
 DOM_boxplots_MS
 
-# ggsave("../Figures/DOM_boxplot_MS.png", DOM_boxplots_MS, height = 6, width = 8, units = "in")
+# ggsave("../Figures/Fig6_DOM_boxplot.png", DOM_boxplots_MS, height = 6, width = 8, units = "in")
 
 
 ```
@@ -368,7 +368,7 @@ nutrient_chla_boxplots_SI <- cowplot::plot_grid(no3_kw$plot, nh4_kw$plot, srp_kw
 
 nutrient_chla_boxplots_SI
 
-ggsave("../Figures/NutChla_boxplot_SI.png", nutrient_chla_boxplots_SI, height = 6, width = 8, units = "in")
+# ggsave("../Figures/FigS13_NutChla_boxplot.png", nutrient_chla_boxplots_SI, height = 6, width = 8, units = "in")
 
 
 ```

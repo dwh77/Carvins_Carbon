@@ -351,7 +351,6 @@ chem_bp |>
   scale_fill_gradient2(low = "red",  high ="blue",
                        midpoint = 6,  guide = "colourbar", breaks = c(3,6,9, 15))
 
-# ggsave("../Figures/Temp_SC_Dexcess_by_Date_SI.png", height = 8, width = 11, units = "in")
 
 
 
@@ -497,7 +496,7 @@ SI_plunge_dry_SC_dexcess_fig <-
                    labels = c("a", "c", "e", "g", "b", "d", "f", "h"), ncol = 4)
 
 
-#ggsave("../Figures/Plunge_dry_SC_Dexcess_SI.png", SI_plunge_dry_SC_dexcess_fig, height = 8, width = 13, units = "in")
+#ggsave("../Figures/FigS4_Plunge_dry_SC_Dexcess.png", SI_plunge_dry_SC_dexcess_fig, height = 8, width = 13, units = "in")
 
 
 ```
@@ -575,8 +574,9 @@ BP_ms <- cowplot::plot_grid(SC_zs_break$plot, Dexcess_zs_break$plot ,
                    doc_zt_break$plot, bix_zt_break$plot,
                                      labels = c("a", "b", "c", "d"), ncol = 1)
 
+BP_ms
 
-# ggsave("../Figures/BP_MS.png", BP_ms, height = 9, width = 7, units = "in")
+# ggsave("../Figures/Fig7_BP.png", BP_ms, height = 9, width = 7, units = "in")
 
 ```
 
@@ -691,7 +691,7 @@ DOM_surf_maxdepth_BPs <- cowplot::plot_grid(doc_zt_surf_break$plot,  bix_zt_surf
 
 DOM_surf_maxdepth_BPs
 
-# ggsave("../Figures/DOM_surf_bot_BPs.png", DOM_surf_maxdepth_BPs, height = 8, width = 9, units = "in")
+# ggsave("../Figures/S12_DOM_surf_bot_BPs.png", DOM_surf_maxdepth_BPs, height = 8, width = 9, units = "in")
 
 
 ```
@@ -727,8 +727,7 @@ DOM_NO3_SI_break_plots <-
 
 DOM_NO3_SI_break_plots
 
-# ggsave("../Figures/DOM_NO3_SI_BP.png", DOM_NO3_SI_break_plots, height = 9, width = 9, units = "in")
-
+# ggsave("../Figures/FigS11_DOM_NO3_SI_BP.png", DOM_NO3_SI_break_plots, height = 9, width = 9, units = "in")
 
 
 ```
@@ -768,7 +767,7 @@ chla_break_plots <- cowplot::plot_grid(no3_zt_break_surf$plot, chla_zt_break_sur
 
 chla_break_plots
 
-# ggsave("../Figures/Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
+# ggsave("../Figures/FigS14_Chla_breakpoints_surf_SI.png", chla_break_plots, height = 9, width = 7, units = "in")
 
 
 
